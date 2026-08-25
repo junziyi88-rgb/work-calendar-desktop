@@ -1,0 +1,19 @@
+.app-shell { display: grid; grid-template-columns: 82px 1fr; height: 100vh; background: var(--canvas); color: var(--ink); }
+.side-rail { display: flex; flex-direction: column; align-items: center; gap: 34px; padding: 18px 10px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 90%, transparent); }
+.brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--ink); color: var(--surface); font: 650 15px/1 "Segoe UI Variable Display", sans-serif; }
+.side-rail nav { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.nav-button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 10px 4px; border: 0; border-radius: 12px; color: var(--muted); background: transparent; cursor: pointer; font-size: 11px; }
+.nav-button:hover { background: var(--surface-soft); color: var(--ink); }
+.nav-button.active { color: var(--signal); background: var(--signal-soft); }
+.nav-button.active::before { content: ""; position: absolute; left: -10px; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--signal); }
+.main-stage { min-width: 0; padding: 0 30px 30px; }
+.stage-header { height: 104px; display: flex; align-items: center; justify-content: space-between; }
+.stage-header h1 { margin: 2px 0 0; font: 620 25px/1.15 "Segoe UI Variable Display", sans-serif; letter-spacing: -0.025em; }
+.eyebrow { margin: 0; color: var(--muted); font: 600 9px/1.4 "Cascadia Mono", Consolas, monospace; letter-spacing: 0.14em; }
+.empty-stage { display: flex; min-height: calc(100vh - 134px); flex-direction: column; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 20px; background: var(--surface); color: var(--muted); box-shadow: var(--shadow); }
+.empty-stage h2 { margin: 18px 0 6px; color: var(--ink); font: 590 18px/1.3 "Segoe UI Variable Display", sans-serif; }
+.empty-stage p { margin: 0; font-size: 13px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .nav-button { transition: color 140ms ease, background 140ms ease; }
+}
