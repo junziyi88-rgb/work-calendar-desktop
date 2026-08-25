@@ -1,5 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BarChart3, CalendarDays, FolderKanban, RotateCcw, Settings, Sparkles } from 'lucide-react';
+import { CalendarPage } from './features/calendar/CalendarPage';
+import { ReviewPage } from './features/review/ReviewPage';
+import { InsightsPage } from './features/insights/InsightsPage';
+import { ProjectsPage } from './features/projects/ProjectsPage';
+import { RecyclePage } from './features/recycle/RecyclePage';
+import { SettingsPage } from './features/settings/SettingsPage';
+import { TimerBar } from './features/timer/TimerBar';
+import { SleepReconcileDialog } from './features/timer/SleepReconcileDialog';
+import { useAppStore } from './store/useAppStore';
 
 type Page = 'calendar' | 'review' | 'insights' | 'projects' | 'recycle' | 'settings';
 
@@ -14,7 +23,32 @@ const navigation: Array<{ id: Page; label: string; icon: typeof CalendarDays }> 
 
 export function App() {
   const [page, setPage] = useState<Page>('calendar');
+  const [quickAddSignal, setQuickAddSignal] = useState(0);
+  const [resumeInfo, setResumeInfo] = useState<{ suspendedAt: string; resumedAt: string } | null>(null);
+  const { hydrate, settings, loading, error } = useAppStore();
   const active = navigation.find((item) => item.id === page)!;
+
+  useEffect(() => {
+    void hydrate();
+    const removeChanged = window.workCalendar?.on('data-changed', () => void hydrate());
+    const removeQuickAdd = window.workCalendar?.on('quick-add', () => { setPage('calendar'); setQuickAddSignal((value) => value + 1); });
+    const removeResume = window.workCalendar?.on('power-resume', (...args) => {
+      const value = args[0] as { suspendedAt?: string | null; resumedAt?: string } | undefined;
+      void hydrate();
+      if (value?.suspendedAt && value.resumedAt && new Date(value.resumedAt).getTime() - new Date(value.suspendedAt).getTime() > 60_000) setResumeInfo({ suspendedAt: value.suspendedAt, resumedAt: value.resumedAt });
+    });
+    return () => { removeChanged?.(); removeQuickAdd?.(); removeResume?.(); };
+  }, [hydrate]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme;
+  }, [settings.theme]);
+
+  if (window.location.hash === '#floating') return <TimerBar floating />;
+
+  const content = page === 'calendar' ? <CalendarPage quickAddSignal={quickAddSignal} />
+    : page === 'review' ? <ReviewPage /> : page === 'insights' ? <InsightsPage />
+      : page === 'projects' ? <ProjectsPage /> : page === 'recycle' ? <RecyclePage /> : <SettingsPage />;
 
   return (
     <div className="app-shell">
@@ -42,12 +76,12 @@ export function App() {
             <p className="eyebrow">WORK CALENDAR</p>
             <h1>{active.label}</h1>
           </div>
+          <TimerBar />
         </header>
-        <section className="empty-stage" aria-live="polite">
-          <CalendarDays size={32} strokeWidth={1.4} />
-          <h2>今天，从一段清晰的时间开始</h2>
-          <p>在日历上划出时间，添加第一项工作。</p>
-        </section>
+        {error && <div className="app-error" role="alert">{error}</div>}
+        {loading && <div className="loading-line" />}
+        {content}
+        {resumeInfo && <SleepReconcileDialog info={resumeInfo} onClose={() => setResumeInfo(null)} />}
       </main>
     </div>
   );
