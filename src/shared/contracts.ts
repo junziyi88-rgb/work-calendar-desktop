@@ -200,31 +200,19 @@ export interface ExportResult {
 }
 
 export interface WorkCalendarBridge {
-  bootstrap(): Promise<{ data: CalendarData; settings: AppSettings }>;
-  calendar(query: CalendarQuery): Promise<CalendarData>;
-  saveTask(input: TaskInput): Promise<Task>;
-  deleteTask(id: string): Promise<void>;
-  saveSegment(input: SegmentInput): Promise<TimeSegment>;
-  stopSegment(id: string, end: string): Promise<TimeSegment>;
-  deleteSegment(id: string): Promise<void>;
-  listProjects(): Promise<Project[]>;
-  saveProject(input: Pick<Project, 'name' | 'color'> & { id?: string }): Promise<Project>;
-  archiveProject(id: string): Promise<void>;
-  listTags(): Promise<Tag[]>;
-  saveTag(input: Pick<Tag, 'name' | 'color'> & { id?: string }): Promise<Tag>;
-  getReview(date: string): Promise<DailyReview | null>;
-  saveReview(input: Partial<DailyReview> & Pick<DailyReview, 'date'>): Promise<DailyReview>;
-  getSettings(): Promise<AppSettings>;
-  saveSettings(input: Partial<AppSettings>): Promise<AppSettings>;
-  listDeleted(): Promise<DeletedItem[]>;
-  restoreDeleted(kind: DeletedItem['kind'], id: string): Promise<void>;
-  permanentlyDelete(kind: DeletedItem['kind'], id: string): Promise<void>;
+  bootstrap(): Promise<WorkLogData>;
+  saveWorkItem(input: WorkItemInput): Promise<WorkItem>;
+  completeWorkItem(id: string): Promise<WorkItem>;
+  reopenWorkItem(id: string): Promise<WorkItem>;
+  deleteWorkItem(id: string): Promise<void>;
+  restoreWorkItem(id: string): Promise<void>;
+  saveWorkLog(input: WorkLogInput): Promise<WorkLog>;
+  deleteWorkLog(id: string): Promise<void>;
+  restoreWorkLog(id: string): Promise<void>;
+  saveSettings(input: Partial<WorkLogSettings>): Promise<WorkLogSettings>;
   createBackup(): Promise<BackupInfo>;
   listBackups(): Promise<BackupInfo[]>;
   restoreBackup(path: string): Promise<void>;
-  exportData(format: 'csv' | 'json' | 'ics'): Promise<ExportResult>;
-  showFloatingTimer(show: boolean): Promise<void>;
-  showMainWindow(): Promise<void>;
-  quit(): Promise<void>;
-  on(event: 'data-changed' | 'quick-add' | 'power-resume', callback: (...args: unknown[]) => void): () => void;
+  exportData(format: 'csv' | 'json'): Promise<ExportResult>;
+  on(event: 'data-changed', callback: (...args: unknown[]) => void): () => void;
 }

@@ -27,3 +27,18 @@ export const calendarQuerySchema = z.object({
   statuses: z.array(z.enum(['todo', 'in_progress', 'completed', 'cancelled'])).optional(),
   search: z.string().max(200).optional(), includeDeleted: z.boolean().optional()
 });
+
+export const workItemInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  title: z.string().trim().min(1, '请输入事项名称').max(160),
+  summary: z.string().max(2_000).optional()
+});
+
+export const workLogInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  workItemId: z.string().min(1).nullable().optional(),
+  content: z.string().trim().min(1, '请输入工作内容').max(10_000),
+  effortMinutes: z.number().int().min(0).max(1440).nullable().optional(),
+  periodKind: z.enum(['day', 'week']),
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效')
+});

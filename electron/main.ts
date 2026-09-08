@@ -1,25 +1,23 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import fs from 'node:fs';
 import path from 'node:path';
+import { app, BrowserWindow, Menu } from 'electron';
 import { openDatabase, type AppDatabase } from './database';
 import { createRepositories, type Repositories } from './repositories';
 import { createBackup } from './backup';
 import { registerIpc } from './ipc';
-import { DesktopController } from './desktop';
 
 let mainWindow: BrowserWindow | null = null;
 let database: AppDatabase | null = null;
 let repositories: Repositories | null = null;
-let desktop: DesktopController | null = null;
-let isQuitting = false;
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 1320,
-    height: 850,
-    minWidth: 900,
+    width: 1120,
+    height: 820,
+    minWidth: 820,
     minHeight: 640,
-    backgroundColor: '#f5f7fa',
-    title: '工作日历',
+    backgroundColor: '#f4f1eb',
+    title: '工作记录',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -30,15 +28,11 @@ function createMainWindow() {
     }
   });
   mainWindow.setMenuBarVisibility(false);
-
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) void mainWindow.loadURL(devUrl);
   else void mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'));
-
   mainWindow.once('ready-to-show', () => mainWindow?.show());
-  mainWindow.on('close', (event) => {
-    if (!isQuitting) { event.preventDefault(); mainWindow?.hide(); }
-  });
+  mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 void app.whenReady().then(async () => {
@@ -46,19 +40,14 @@ void app.whenReady().then(async () => {
   const dataDirectory = path.join(app.getPath('userData'), 'data');
   const databasePath = path.join(dataDirectory, 'work-calendar.sqlite');
   const backupDirectory = path.join(app.getPath('userData'), 'backups');
+  if (fs.existsSync(databasePath)) createBackup(databasePath, backupDirectory, 30, true);
   database = await openDatabase(databasePath);
   repositories = createRepositories(database);
-  if (repositories.projects.list(true).length === 0) repositories.projects.save({ name: '日常工作', color: '#3a6fe8' });
   database.flush();
-  createBackup(databasePath, backupDirectory, repositories.settings.get().backupRetention, true);
   createMainWindow();
-  const rendererPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
-  desktop = new DesktopController(() => mainWindow, repositories, path.join(__dirname, 'preload.js'), rendererPath);
-  desktop.start();
-  registerIpc({ repositories, database, databasePath, backupDirectory, getMainWindow: () => mainWindow, showFloatingTimer: (show) => desktop?.showFloating(show) });
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
-  });
+  registerIpc({ repositories, database, databasePath, backupDirectory, getMainWindow: () => mainWindow });
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createMainWindow(); });
 });
 
-app.on('before-quit', () => { isQuitting = true; desktop?.dispose(); database?.flush(); });
+app.on('window-all-closed', () => app.quit());
+app.on('before-quit', () => database?.flush());

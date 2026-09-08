@@ -1,4 +1,4 @@
-import type { CalendarData, Task } from '../shared/contracts';
+import type { CalendarData, Task, WorkLogData } from '../shared/contracts';
 import { durationMinutes } from './time';
 
 function csvCell(value: unknown) {
@@ -47,4 +47,21 @@ export function serializeIcs(tasks: Task[]) {
 
 export function serializeJson(data: CalendarData, extra: Record<string, unknown> = {}) {
   return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), ...data, ...extra }, null, 2);
+}
+
+export function serializeWorkLogCsv(data: WorkLogData) {
+  const itemMap = new Map(data.items.map((item) => [item.id, item.title]));
+  const header = ['周期', '事项', '工作内容', '工时', '记录精度'];
+  const lines = data.logs.filter((log) => !log.deletedAt).map((log) => [
+    log.periodStart,
+    log.workItemId ? itemMap.get(log.workItemId) ?? '已删除事项' : '其他工作',
+    log.content,
+    log.effortMinutes == null ? '' : Math.round((log.effortMinutes / 60) * 100) / 100,
+    log.periodKind === 'week' ? '周' : '日'
+  ].map(csvCell).join(','));
+  return `\ufeff${header.join(',')}\r\n${lines.join('\r\n')}`;
+}
+
+export function serializeWorkLogJson(data: WorkLogData) {
+  return JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), ...data }, null, 2);
 }
