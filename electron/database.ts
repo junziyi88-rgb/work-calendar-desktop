@@ -36,10 +36,24 @@ CREATE TABLE IF NOT EXISTS reviews (
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS work_items (
+  id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+  summary TEXT NOT NULL DEFAULT '', completed_at TEXT, deleted_at TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS work_logs (
+  id TEXT PRIMARY KEY, work_item_id TEXT, content TEXT NOT NULL, effort_minutes INTEGER,
+  period_kind TEXT NOT NULL, period_start TEXT NOT NULL, deleted_at TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  FOREIGN KEY(work_item_id) REFERENCES work_items(id)
+);
 CREATE INDEX IF NOT EXISTS idx_tasks_planned ON tasks(planned_start, planned_end);
 CREATE INDEX IF NOT EXISTS idx_segments_range ON segments(start, end);
 CREATE INDEX IF NOT EXISTS idx_segments_task ON segments(task_id);
-INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', '1');
+CREATE INDEX IF NOT EXISTS idx_work_logs_period ON work_logs(period_start, period_kind);
+CREATE INDEX IF NOT EXISTS idx_work_logs_item ON work_logs(work_item_id);
+CREATE INDEX IF NOT EXISTS idx_work_items_updated ON work_items(updated_at);
+INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', '2');
 `;
 
 export class AppDatabase {

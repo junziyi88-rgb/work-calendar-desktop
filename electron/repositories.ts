@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { BindParams, Database } from 'sql.js';
 import type {
   AppSettings, CalendarData, CalendarQuery, DailyReview, DeletedItem, Project,
-  SegmentInput, Tag, Task, TaskInput, TimeSegment
+  SegmentInput, Tag, Task, TaskInput, TimeSegment, WorkItem, WorkItemInput,
+  WorkLog, WorkLogData, WorkLogInput
 } from '../src/shared/contracts';
 import type { AppDatabase } from './database';
 
@@ -29,16 +30,90 @@ type ProjectRow = { id: string; name: string; color: string; archived_at: string
 type TagRow = { id: string; name: string; color: string; created_at: string; updated_at: string };
 type TaskRow = { id: string; title: string; project_id: string | null; notes: string; status: Task['status']; planned_start: string | null; planned_end: string | null; completed_at: string | null; deleted_at: string | null; created_at: string; updated_at: string };
 type SegmentRow = { id: string; task_id: string; start: string; end: string | null; source: TimeSegment['source']; note: string; deleted_at: string | null; created_at: string; updated_at: string };
+type WorkItemRow = { id: string; title: string; status: WorkItem['status']; summary: string; completed_at: string | null; deleted_at: string | null; created_at: string; updated_at: string };
+type WorkLogRow = { id: string; work_item_id: string | null; content: string; effort_minutes: number | null; period_kind: WorkLog['periodKind']; period_start: string; deleted_at: string | null; created_at: string; updated_at: string };
 
 const mapProject = (item: ProjectRow): Project => ({ id: item.id, name: item.name, color: item.color, archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapTag = (item: TagRow): Tag => ({ id: item.id, name: item.name, color: item.color, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapSegment = (item: SegmentRow): TimeSegment => ({ id: item.id, taskId: item.task_id, start: item.start, end: item.end, source: item.source, note: item.note, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
+const mapWorkItem = (item: WorkItemRow): WorkItem => ({ id: item.id, title: item.title, status: item.status, summary: item.summary, completedAt: item.completed_at, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
+const mapWorkLog = (item: WorkLogRow): WorkLog => ({ id: item.id, workItemId: item.work_item_id, content: item.content, effortMinutes: item.effort_minutes, periodKind: item.period_kind, periodStart: item.period_start, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
 
 export function createRepositories(database: AppDatabase, now: () => string = () => new Date().toISOString()) {
   const { db } = database;
   const tagIdsForTask = (taskId: string) => rows<{ tag_id: string }>(db, 'SELECT tag_id FROM task_tags WHERE task_id = ? ORDER BY tag_id', [taskId]).map((item) => item.tag_id);
   const mapTask = (item: TaskRow): Task => ({ id: item.id, title: item.title, projectId: item.project_id, notes: item.notes, status: item.status, plannedStart: item.planned_start, plannedEnd: item.planned_end, completedAt: item.completed_at, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at, tagIds: tagIdsForTask(item.id) });
   const persist = () => database.flush();
+
+  const migrated = row<{ value: string }>(db, "SELECT value FROM meta WHERE key='legacy_migrated_v2'");
+  if (!migrated) {
+    const timestamp = now();
+    db.run('BEGIN');
+    try {
+      const legacyTasks = rows<TaskRow>(db, 'SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY created_at');
+      const legacySegments = rows<SegmentRow>(db, 'SELECT * FROM segments WHERE deleted_at IS NULL ORDER BY start');
+      for (const task of legacyTasks) {
+        db.run(`INSERT OR IGNORE INTO work_items (id,title,status,summary,completed_at,deleted_at,created_at,updated_at)
+          VALUES (?,?,?,?,?,NULL,?,?)`, [task.id, task.title, task.status === 'completed' ? 'completed' : 'active', task.notes, task.status === 'completed' ? task.completed_at ?? timestamp : null, task.created_at, task.updated_at]);
+        if (task.notes.trim()) {
+          db.run(`INSERT OR IGNORE INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,deleted_at,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,NULL,?,?)`, [`legacy-note-${task.id}`, task.id, task.notes.trim(), null, 'day', task.updated_at.slice(0, 10), task.updated_at, task.updated_at]);
+        }
+      }
+      for (const segment of legacySegments) {
+        const task = legacyTasks.find((candidate) => candidate.id === segment.task_id);
+        if (!task) continue;
+        const end = segment.end ?? timestamp;
+        const duration = Math.max(0, Math.min(1440, Math.round((new Date(end).getTime() - new Date(segment.start).getTime()) / 60_000)));
+        const content = segment.note.trim() || (segment.end ? task.title : `${task.title}（旧版计时迁移估算）`);
+        db.run(`INSERT OR IGNORE INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,deleted_at,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,NULL,?,?)`, [`legacy-segment-${segment.id}`, task.id, content, duration, 'day', segment.start.slice(0, 10), segment.created_at, segment.updated_at]);
+      }
+      db.run("INSERT INTO meta(key,value) VALUES ('legacy_migrated_v2','1')");
+      db.run('COMMIT');
+    } catch (error) {
+      db.run('ROLLBACK');
+      throw error;
+    }
+    persist();
+  }
+
+  const workItems = {
+    list: (includeDeleted = false) => rows<WorkItemRow>(db, `SELECT * FROM work_items ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY updated_at DESC, title`).map(mapWorkItem),
+    get: (id: string) => { const item = row<WorkItemRow>(db, 'SELECT * FROM work_items WHERE id=?', [id]); return item ? mapWorkItem(item) : null; },
+    save: (input: WorkItemInput) => {
+      const title = input.title.trim();
+      if (!title) throw new Error('请输入事项名称');
+      const id = input.id ?? randomUUID(); const timestamp = now();
+      const existing = input.id ? row<WorkItemRow>(db, 'SELECT * FROM work_items WHERE id=?', [input.id]) : null;
+      if (existing) db.run('UPDATE work_items SET title=?, summary=?, updated_at=? WHERE id=?', [title, input.summary ?? existing.summary, timestamp, id]);
+      else db.run("INSERT INTO work_items VALUES (?,?, 'active', ?, NULL, NULL, ?, ?)", [id, title, input.summary ?? '', timestamp, timestamp]);
+      persist(); return workItems.get(id)!;
+    },
+    complete: (id: string) => { const timestamp = now(); db.run("UPDATE work_items SET status='completed', completed_at=?, updated_at=? WHERE id=?", [timestamp, timestamp, id]); persist(); return workItems.get(id)!; },
+    reopen: (id: string) => { const timestamp = now(); db.run("UPDATE work_items SET status='active', completed_at=NULL, updated_at=? WHERE id=?", [timestamp, id]); persist(); return workItems.get(id)!; },
+    softDelete: (id: string) => { const timestamp = now(); db.run('UPDATE work_items SET deleted_at=?, updated_at=? WHERE id=?', [timestamp, timestamp, id]); persist(); },
+    restore: (id: string) => { db.run('UPDATE work_items SET deleted_at=NULL, updated_at=? WHERE id=?', [now(), id]); persist(); }
+  };
+
+  const workLogs = {
+    list: (includeDeleted = false) => rows<WorkLogRow>(db, `SELECT * FROM work_logs ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY period_start DESC, created_at DESC`).map(mapWorkLog),
+    get: (id: string) => { const item = row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [id]); return item ? mapWorkLog(item) : null; },
+    save: (input: WorkLogInput) => {
+      const content = input.content.trim();
+      if (!content) throw new Error('请输入工作内容');
+      if (input.effortMinutes != null && (input.effortMinutes < 0 || input.effortMinutes > 1440)) throw new Error('单条记录不能超过 24 小时');
+      if (input.workItemId && workItems.get(input.workItemId)?.status === 'completed') throw new Error('请先重新打开事项');
+      const id = input.id ?? randomUUID(); const timestamp = now();
+      const existing = input.id ? row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [input.id]) : null;
+      if (existing) db.run('UPDATE work_logs SET work_item_id=?, content=?, effort_minutes=?, period_kind=?, period_start=?, updated_at=? WHERE id=?', [input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, timestamp, id]);
+      else db.run('INSERT INTO work_logs VALUES (?,?,?,?,?,?,NULL,?,?)', [id, input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, timestamp, timestamp]);
+      if (input.workItemId) db.run('UPDATE work_items SET summary=?, updated_at=? WHERE id=?', [content, timestamp, input.workItemId]);
+      persist(); return workLogs.get(id)!;
+    },
+    softDelete: (id: string) => { const timestamp = now(); db.run('UPDATE work_logs SET deleted_at=?, updated_at=? WHERE id=?', [timestamp, timestamp, id]); persist(); },
+    restore: (id: string) => { db.run('UPDATE work_logs SET deleted_at=NULL, updated_at=? WHERE id=?', [now(), id]); persist(); }
+  };
 
   const projects = {
     list: (includeArchived = false) => rows<ProjectRow>(db, `SELECT * FROM projects ${includeArchived ? '' : 'WHERE archived_at IS NULL'} ORDER BY name`).map(mapProject),
@@ -160,7 +235,13 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
     }
   };
 
-  return { projects, tags, tasks, segments, reviews, settings, recycle, calendar };
+  const workLogData = (): WorkLogData => ({
+    items: workItems.list(),
+    logs: workLogs.list(),
+    settings: { theme: settings.get().theme, backupRetention: settings.get().backupRetention }
+  });
+
+  return { workItems, workLogs, workLogData, projects, tags, tasks, segments, reviews, settings, recycle, calendar };
 }
 
 export type Repositories = ReturnType<typeof createRepositories>;

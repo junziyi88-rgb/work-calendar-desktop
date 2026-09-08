@@ -2,6 +2,78 @@ export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
 export type SegmentSource = 'timer' | 'manual';
 export type ThemePreference = 'system' | 'light' | 'dark';
 
+export type WorkItemStatus = 'active' | 'completed';
+export type WorkLogPeriodKind = 'day' | 'week';
+export type SummaryKind = 'week' | 'month';
+
+export interface WorkItem {
+  id: string;
+  title: string;
+  status: WorkItemStatus;
+  summary: string;
+  completedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkLog {
+  id: string;
+  workItemId: string | null;
+  content: string;
+  effortMinutes: number | null;
+  periodKind: WorkLogPeriodKind;
+  periodStart: string;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkItemInput {
+  id?: string;
+  title: string;
+  summary?: string;
+}
+
+export interface WorkLogInput {
+  id?: string;
+  workItemId?: string | null;
+  content: string;
+  effortMinutes?: number | null;
+  periodKind: WorkLogPeriodKind;
+  periodStart: string;
+}
+
+export interface WorkLogSettings {
+  theme: ThemePreference;
+  backupRetention: number;
+}
+
+export interface WorkLogData {
+  items: WorkItem[];
+  logs: WorkLog[];
+  settings: WorkLogSettings;
+}
+
+export interface SummaryGroup {
+  itemId: string | null;
+  itemTitle: string;
+  minutes: number;
+  logs: WorkLog[];
+}
+
+export interface SummaryResult {
+  kind: SummaryKind;
+  start: string;
+  end: string;
+  totalMinutes: number;
+  groups: SummaryGroup[];
+  missingEffort: WorkLog[];
+  completedItems: WorkItem[];
+  progressedItems: WorkItem[];
+  copyText: string;
+}
+
 export interface Project {
   id: string;
   name: string;
