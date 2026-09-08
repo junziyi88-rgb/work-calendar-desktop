@@ -44,6 +44,10 @@ main { width: min(1060px, calc(100% - 72px)); margin: 0 auto; }
 .quick-entry input, .quick-entry select, .new-item-row input, .inline-editor input { width: 100%; border: 1px solid var(--line); border-radius: 9px; background: var(--input); color: var(--ink); outline: none; transition: border-color .2s, box-shadow .2s; }
 .entry-primary input { height: 49px; padding: 0 14px; }
 .entry-content-field input { font-size: 16px; }
+.recent-items { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.recent-items > span { margin-right: 3px; color: var(--muted); font-size: 11px; }
+.recent-items button { padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
+.recent-items button:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-soft); }
 .quick-entry input:focus, .quick-entry select:focus, .new-item-row input:focus, .inline-editor input:focus { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
 .entry-meta { display: grid; grid-template-columns: 150px 130px 160px 1fr; align-items: end; gap: 10px; margin-top: 13px; }
 .entry-meta input, .entry-meta select { height: 40px; padding: 0 11px; }

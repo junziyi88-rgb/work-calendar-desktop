@@ -29,6 +29,16 @@ export function QuickEntry({ items, initialDate, initialItemId = null, compact =
     const item = items.find((candidate) => candidate.id === initialItemId);
     if (item) setItemText(item.title);
   }, [initialItemId, items]);
+  useEffect(() => {
+    const protect = (event: BeforeUnloadEvent) => {
+      const matchesExisting = activeItems.some((item) => item.title === itemText.trim());
+      if (!content.trim() && !effort.trim() && (!itemText.trim() || matchesExisting)) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', protect);
+    return () => window.removeEventListener('beforeunload', protect);
+  }, [activeItems, content, effort, itemText]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -60,6 +70,7 @@ export function QuickEntry({ items, initialDate, initialItemId = null, compact =
         <input aria-label="工作内容" autoFocus={!compact} value={content} onChange={(event) => setContent(event.target.value)} placeholder="这次做了什么，推进到了哪一步？" />
       </label>
     </div>
+    {!compact && activeItems.length > 0 && <div className="recent-items"><span>最近事项</span>{activeItems.slice(0, 5).map((item) => <button type="button" key={item.id} onClick={() => setItemText(item.title)}>{item.title}</button>)}</div>}
     <div className="entry-meta">
       <label><span>工时</span><input aria-label="工时" value={effort} onChange={(event) => setEffort(event.target.value)} placeholder="如 1.5h" /></label>
       <label><span>记录到</span><select aria-label="记录到" value={periodKind} onChange={(event) => setPeriodKind(event.target.value as WorkLogPeriodKind)}><option value="day">某一天</option><option value="week">某一周</option></select></label>

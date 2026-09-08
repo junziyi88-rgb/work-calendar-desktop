@@ -18,6 +18,7 @@ describe('work summaries', () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText');
     render(<SummaryPage data={data} initialAnchor="2026-09-08" onExport={vi.fn()} />);
     expect(screen.getByText('本周共 3.5 小时')).toBeInTheDocument();
+    expect(screen.getByText('持续推进')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '复制周总结' }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('完成第三轮脚本修改'));
   });
