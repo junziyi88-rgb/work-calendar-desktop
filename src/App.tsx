@@ -1,88 +1,44 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, CalendarDays, FolderKanban, RotateCcw, Settings, Sparkles } from 'lucide-react';
-import { CalendarPage } from './features/calendar/CalendarPage';
-import { ReviewPage } from './features/review/ReviewPage';
-import { InsightsPage } from './features/insights/InsightsPage';
-import { ProjectsPage } from './features/projects/ProjectsPage';
-import { RecyclePage } from './features/recycle/RecyclePage';
-import { SettingsPage } from './features/settings/SettingsPage';
-import { TimerBar } from './features/timer/TimerBar';
-import { SleepReconcileDialog } from './features/timer/SleepReconcileDialog';
+import { BookOpenText, Ellipsis, FileText, Layers3 } from 'lucide-react';
+import { ItemsPage } from './features/items/ItemsPage';
+import { RecordPage } from './features/records/RecordPage';
+import { SummaryPage } from './features/summary/SummaryPage';
 import { useAppStore } from './store/useAppStore';
 
-type Page = 'calendar' | 'review' | 'insights' | 'projects' | 'recycle' | 'settings';
+type Page = 'records' | 'items' | 'summary';
 
-const navigation: Array<{ id: Page; label: string; icon: typeof CalendarDays }> = [
-  { id: 'calendar', label: '日历', icon: CalendarDays },
-  { id: 'review', label: '复盘', icon: Sparkles },
-  { id: 'insights', label: '洞察', icon: BarChart3 },
-  { id: 'projects', label: '项目', icon: FolderKanban },
-  { id: 'recycle', label: '回收站', icon: RotateCcw },
-  { id: 'settings', label: '设置', icon: Settings }
+const navigation = [
+  { id: 'records' as const, label: '记录', icon: BookOpenText },
+  { id: 'items' as const, label: '事项', icon: Layers3 },
+  { id: 'summary' as const, label: '总结', icon: FileText }
 ];
 
 export function App() {
-  const [page, setPage] = useState<Page>('calendar');
-  const [quickAddSignal, setQuickAddSignal] = useState(0);
-  const [resumeInfo, setResumeInfo] = useState<{ suspendedAt: string; resumedAt: string } | null>(null);
-  const { hydrate, settings, loading, error } = useAppStore();
-  const active = navigation.find((item) => item.id === page)!;
+  const [page, setPage] = useState<Page>('records');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { data, loading, error, hydrate, saveItem, completeItem, reopenItem, saveLog, deleteLog, restoreLog, saveSettings, createBackup, exportData } = useAppStore();
 
   useEffect(() => {
     void hydrate();
-    const removeChanged = window.workCalendar?.on('data-changed', () => void hydrate());
-    const removeQuickAdd = window.workCalendar?.on('quick-add', () => { setPage('calendar'); setQuickAddSignal((value) => value + 1); });
-    const removeResume = window.workCalendar?.on('power-resume', (...args) => {
-      const value = args[0] as { suspendedAt?: string | null; resumedAt?: string } | undefined;
-      void hydrate();
-      if (value?.suspendedAt && value.resumedAt && new Date(value.resumedAt).getTime() - new Date(value.suspendedAt).getTime() > 60_000) setResumeInfo({ suspendedAt: value.suspendedAt, resumedAt: value.resumedAt });
-    });
-    return () => { removeChanged?.(); removeQuickAdd?.(); removeResume?.(); };
+    return window.workCalendar?.on('data-changed', () => void hydrate());
   }, [hydrate]);
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = settings.theme;
-  }, [settings.theme]);
+  useEffect(() => { document.documentElement.dataset.theme = data.settings.theme; }, [data.settings.theme]);
 
-  if (window.location.hash === '#floating') return <TimerBar floating />;
+  const content = page === 'records'
+    ? <RecordPage data={data} onSaveLog={saveLog} onDeleteLog={deleteLog} onRestoreLog={restoreLog} />
+    : page === 'items'
+      ? <ItemsPage data={data} onSaveItem={saveItem} onComplete={completeItem} onReopen={reopenItem} onSaveLog={saveLog} onDeleteLog={deleteLog} onRestoreLog={restoreLog} />
+      : <SummaryPage data={data} onExport={exportData} />;
 
-  const content = page === 'calendar' ? <CalendarPage quickAddSignal={quickAddSignal} />
-    : page === 'review' ? <ReviewPage /> : page === 'insights' ? <InsightsPage />
-      : page === 'projects' ? <ProjectsPage /> : page === 'recycle' ? <RecyclePage /> : <SettingsPage />;
-
-  return (
-    <div className="app-shell">
-      <aside className="side-rail" aria-label="主导航">
-        <div className="brand-mark" aria-label="工作日历">工</div>
-        <nav>
-          {navigation.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              className={page === id ? 'nav-button active' : 'nav-button'}
-              aria-label={label}
-              aria-current={page === id ? 'page' : undefined}
-              onClick={() => setPage(id)}
-            >
-              <Icon size={18} strokeWidth={1.8} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-      <main className="main-stage">
-        <header className="stage-header">
-          <div>
-            <p className="eyebrow">WORK CALENDAR</p>
-            <h1>{active.label}</h1>
-          </div>
-          <TimerBar />
-        </header>
-        {error && <div className="app-error" role="alert">{error}</div>}
-        {loading && <div className="loading-line" />}
-        {content}
-        {resumeInfo && <SleepReconcileDialog info={resumeInfo} onClose={() => setResumeInfo(null)} />}
-      </main>
-    </div>
-  );
+  return <div className="work-log-app">
+    <header className="app-header">
+      <div className="wordmark"><span>工</span><div><strong>工作记录</strong><small>只记做过的事</small></div></div>
+      <nav aria-label="主导航">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-label={label} aria-current={page === id ? 'page' : undefined} className={page === id ? 'active' : ''} onClick={() => setPage(id)}><Icon size={17} /><span>{label}</span></button>)}</nav>
+      <div className="app-menu"><button aria-label="更多操作" className="icon-button" onClick={() => setMenuOpen((value) => !value)}><Ellipsis size={19} /></button>{menuOpen && <div className="overflow-menu"><button onClick={() => void createBackup()}>立即备份</button><button onClick={() => void exportData('json')}>导出完整数据</button><button onClick={() => void exportData('csv')}>导出工时 CSV</button><div className="menu-divider" /><label>主题<select aria-label="主题" value={data.settings.theme} onChange={(event) => void saveSettings({ theme: event.target.value as 'system' | 'light' | 'dark' })}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label></div>}</div>
+    </header>
+    {error && <div className="app-error" role="alert">{error}</div>}
+    {loading && <div className="loading-line" />}
+    <main>{content}</main>
+  </div>;
 }

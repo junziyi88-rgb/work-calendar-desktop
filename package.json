@@ -1,9 +1,9 @@
 {
   "name": "work-calendar-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "author": "Work Calendar",
-  "description": "A local-first Windows work calendar for planning, timing, and reviewing each day.",
+  "author": "Work Log",
+  "description": "A local-first Windows work log for manual progress, weekly summaries, and monthly hours.",
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on dist-electron/electron/main.js http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
@@ -15,11 +15,6 @@
     "start": "electron ."
   },
   "dependencies": {
-    "@fullcalendar/core": "^6.1.18",
-    "@fullcalendar/daygrid": "^6.1.18",
-    "@fullcalendar/interaction": "^6.1.18",
-    "@fullcalendar/react": "^6.1.18",
-    "@fullcalendar/timegrid": "^6.1.18",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.468.0",
     "react": "^19.1.1",
@@ -49,7 +44,7 @@
   },
   "build": {
     "appId": "com.local.workcalendar",
-    "productName": "工作日历",
+    "productName": "工作记录",
     "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "release"
@@ -68,14 +63,14 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "WorkCalendar-Setup-${version}.${ext}"
+      "artifactName": "WorkLog-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "工作日历"
+      "shortcutName": "工作记录"
     }
   }
 }

@@ -1,14 +1,14 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { App } from '../../src/App';
 
 describe('application shell', () => {
-  it('provides the primary work calendar destinations', () => {
+  it('contains only the three primary work-log destinations', () => {
     render(<App />);
-
-    expect(screen.getByRole('button', { name: '日历' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '复盘' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '洞察' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '设置' })).toBeInTheDocument();
+    const navigation = within(screen.getByRole('navigation', { name: '主导航' }));
+    expect(navigation.getByRole('button', { name: '记录' })).toBeInTheDocument();
+    expect(navigation.getByRole('button', { name: '事项' })).toBeInTheDocument();
+    expect(navigation.getByRole('button', { name: '总结' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '计时' })).not.toBeInTheDocument();
   });
 });

@@ -1,31 +1,24 @@
 import { create } from 'zustand';
-import type { AppSettings, CalendarData, DailyReview, DeletedItem, Project, SegmentInput, Tag, Task, TaskInput, TimeSegment } from '../shared/contracts';
+import type { WorkItem, WorkItemInput, WorkLog, WorkLogData, WorkLogInput, WorkLogSettings } from '../shared/contracts';
 
-const EMPTY_DATA: CalendarData = { tasks: [], segments: [], projects: [], tags: [] };
-const DEFAULT_SETTINGS: AppSettings = {
-  theme: 'system', weekStartsOn: 1, dayStartHour: 7, dayEndHour: 22, defaultPlannedMinutes: 60,
-  allowParallelTimers: false, privateNotifications: false, launchAtStartup: false,
-  globalShortcut: 'CommandOrControl+Shift+Space', longTimerMinutes: 180, backupRetention: 14, floatingTimer: false
-};
+const EMPTY_DATA: WorkLogData = { items: [], logs: [], settings: { theme: 'system', backupRetention: 14 } };
 
 interface AppState {
-  data: CalendarData;
-  settings: AppSettings;
+  data: WorkLogData;
   loading: boolean;
   error: string | null;
   hydrate(): Promise<void>;
-  saveTask(input: TaskInput): Promise<Task>;
-  deleteTask(id: string): Promise<void>;
-  saveSegment(input: SegmentInput): Promise<TimeSegment>;
-  deleteSegment(id: string): Promise<void>;
-  startTimer(taskId: string): Promise<void>;
-  stopTimer(segmentId?: string): Promise<void>;
-  saveProject(input: { id?: string; name: string; color: string }): Promise<Project>;
-  archiveProject(id: string): Promise<void>;
-  saveTag(input: { id?: string; name: string; color: string }): Promise<Tag>;
-  saveReview(input: Partial<DailyReview> & Pick<DailyReview, 'date'>): Promise<DailyReview>;
-  saveSettings(input: Partial<AppSettings>): Promise<void>;
-  listDeleted(): Promise<DeletedItem[]>;
+  saveItem(input: WorkItemInput): Promise<WorkItem>;
+  completeItem(id: string): Promise<void>;
+  reopenItem(id: string): Promise<void>;
+  deleteItem(id: string): Promise<void>;
+  restoreItem(id: string): Promise<void>;
+  saveLog(input: WorkLogInput, newItemTitle?: string): Promise<WorkLog>;
+  deleteLog(id: string): Promise<void>;
+  restoreLog(id: string): Promise<void>;
+  saveSettings(input: Partial<WorkLogSettings>): Promise<void>;
+  createBackup(): Promise<void>;
+  exportData(format: 'csv' | 'json'): Promise<void>;
 }
 
 function bridge() {
@@ -33,49 +26,43 @@ function bridge() {
   return window.workCalendar;
 }
 
-function message(error: unknown) {
+function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '操作失败，请重试';
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   data: EMPTY_DATA,
-  settings: DEFAULT_SETTINGS,
   loading: false,
   error: null,
   hydrate: async () => {
     if (!window.workCalendar) return;
     set({ loading: true, error: null });
-    try { const result = await bridge().bootstrap(); set({ data: result.data, settings: result.settings, loading: false }); }
-    catch (error) { set({ error: message(error), loading: false }); }
+    try { set({ data: await bridge().bootstrap(), loading: false }); }
+    catch (error) { set({ error: errorMessage(error), loading: false }); }
   },
-  saveTask: async (input) => {
-    try { const task = await bridge().saveTask(input); await get().hydrate(); return task; }
-    catch (error) { set({ error: message(error) }); throw error; }
+  saveItem: async (input) => {
+    try { const item = await bridge().saveWorkItem(input); await get().hydrate(); return item; }
+    catch (error) { set({ error: errorMessage(error) }); throw error; }
   },
-  deleteTask: async (id) => { await bridge().deleteTask(id); await get().hydrate(); },
-  saveSegment: async (input) => { const segment = await bridge().saveSegment(input); await get().hydrate(); return segment; },
-  deleteSegment: async (id) => { await bridge().deleteSegment(id); await get().hydrate(); },
-  startTimer: async (taskId) => {
-    const active = get().data.segments.filter((segment) => !segment.end && !segment.deletedAt);
-    const conflicting = active.find((segment) => segment.taskId !== taskId);
-    if (conflicting && !get().settings.allowParallelTimers) {
-      const task = get().data.tasks.find((item) => item.id === conflicting.taskId);
-      if (!window.confirm(`“${task?.title ?? '当前任务'}”正在计时。停止它并开始新任务吗？`)) return;
-      await bridge().stopSegment(conflicting.id, new Date().toISOString());
-    }
-    if (active.some((segment) => segment.taskId === taskId)) return;
-    await bridge().saveSegment({ taskId, start: new Date().toISOString(), end: null, source: 'timer' });
-    await get().hydrate();
+  completeItem: async (id) => { await bridge().completeWorkItem(id); await get().hydrate(); },
+  reopenItem: async (id) => { await bridge().reopenWorkItem(id); await get().hydrate(); },
+  deleteItem: async (id) => { await bridge().deleteWorkItem(id); await get().hydrate(); },
+  restoreItem: async (id) => { await bridge().restoreWorkItem(id); await get().hydrate(); },
+  saveLog: async (input, newItemTitle) => {
+    try {
+      let workItemId = input.workItemId ?? null;
+      if (!workItemId && newItemTitle?.trim()) workItemId = (await bridge().saveWorkItem({ title: newItemTitle.trim() })).id;
+      const log = await bridge().saveWorkLog({ ...input, workItemId });
+      await get().hydrate();
+      return log;
+    } catch (error) { set({ error: errorMessage(error) }); throw error; }
   },
-  stopTimer: async (segmentId) => {
-    const active = get().data.segments.find((segment) => !segment.end && (!segmentId || segment.id === segmentId));
-    if (!active) return;
-    await bridge().stopSegment(active.id, new Date().toISOString()); await get().hydrate();
+  deleteLog: async (id) => { await bridge().deleteWorkLog(id); await get().hydrate(); },
+  restoreLog: async (id) => { await bridge().restoreWorkLog(id); await get().hydrate(); },
+  saveSettings: async (input) => {
+    const settings = await bridge().saveSettings(input);
+    set((state) => ({ data: { ...state.data, settings } }));
   },
-  saveProject: async (input) => { const value = await bridge().saveProject(input); await get().hydrate(); return value; },
-  archiveProject: async (id) => { await bridge().archiveProject(id); await get().hydrate(); },
-  saveTag: async (input) => { const value = await bridge().saveTag(input); await get().hydrate(); return value; },
-  saveReview: (input) => bridge().saveReview(input),
-  saveSettings: async (input) => { const settings = await bridge().saveSettings(input); set({ settings }); },
-  listDeleted: () => bridge().listDeleted()
+  createBackup: async () => { await bridge().createBackup(); },
+  exportData: async (format) => { await bridge().exportData(format); }
 }));
