@@ -36,13 +36,28 @@ describe('work log editing', () => {
     await user.type(screen.getByLabelText('编辑日期'), '2026-09-10');
     await user.clear(screen.getByLabelText('编辑时间'));
     await user.type(screen.getByLabelText('编辑时间'), '09:40');
-    await user.selectOptions(screen.getByLabelText('编辑分类'), 'manual:__none__');
+    expect(screen.getByLabelText('编辑分类').tagName).toBe('INPUT');
+    await user.clear(screen.getByLabelText('编辑分类'));
+    await user.type(screen.getByLabelText('编辑分类'), '项目协作');
     await user.click(screen.getByRole('button', { name: '保存修改' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       id: 'log-1', workItemId: 'item-new', content: '整理本月进展', effortMinutes: 90,
       periodKind: 'week', periodStart: '2026-09-07',
-      occurredAt: new Date(2026, 8, 10, 9, 40).toISOString(), categoryId: null, categoryMode: 'manual'
+      occurredAt: new Date(2026, 8, 10, 9, 40).toISOString(), categoryName: '项目协作', categoryMode: 'manual'
     }));
   }, 10_000);
+
+  it('allows an automatic category to be manually cleared', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<LogList logs={[log]} items={items} categories={categories} onSave={onSave} onDelete={vi.fn()} onRestore={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: '编辑记录' }));
+    expect(screen.getByLabelText('编辑分类')).toHaveValue('内容制作');
+    await user.clear(screen.getByLabelText('编辑分类'));
+    await user.click(screen.getByRole('button', { name: '保存修改' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ categoryName: null, categoryMode: 'manual' }));
+  });
 });

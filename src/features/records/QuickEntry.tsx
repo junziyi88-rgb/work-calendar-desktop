@@ -26,6 +26,7 @@ function occurredAt(date: string, time: string) {
 export function QuickEntry({ items, categories = [], contentOptions = [], initialDate, initialItemId = null, compact = false, onSave }: Props) {
   const itemListId = useId();
   const contentListId = useId();
+  const categoryListId = useId();
   const initialItem = items.find((item) => item.id === initialItemId);
   const [itemText, setItemText] = useState(initialItem?.title ?? '');
   const [content, setContent] = useState('');
@@ -33,7 +34,8 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
   const [periodKind, setPeriodKind] = useState<WorkLogPeriodKind>('day');
   const [periodDate, setPeriodDate] = useState(initialDate);
   const [recordTime, setRecordTime] = useState(() => localTime(new Date()));
-  const [categoryChoice, setCategoryChoice] = useState('auto');
+  const [categoryText, setCategoryText] = useState('');
+  const [categoryIsManual, setCategoryIsManual] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const activeItems = useMemo(() => items.filter((item) => item.status === 'active' && !item.deletedAt), [items]);
@@ -49,13 +51,13 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
       const matchesExisting = activeItems.some((item) => item.title === itemText.trim());
-      if (!content.trim() && !effort.trim() && (!itemText.trim() || matchesExisting)) return;
+      if (!content.trim() && !effort.trim() && !categoryText.trim() && (!itemText.trim() || matchesExisting)) return;
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', protect);
     return () => window.removeEventListener('beforeunload', protect);
-  }, [activeItems, content, effort, itemText]);
+  }, [activeItems, categoryText, content, effort, itemText]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -63,17 +65,17 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
     setSaving(true); setError('');
     try {
       const effortMinutes = parseEffort(effort);
-      const manualCategory = categoryChoice.startsWith('manual:') ? categoryChoice.slice(7) : null;
       await onSave({
         content: content.trim(), effortMinutes, periodKind,
         periodStart: periodKind === 'week' ? weekStart(periodDate) : periodDate,
         occurredAt: occurredAt(periodDate, recordTime),
         workItemId: matchedItem?.id ?? null,
-        categoryId: categoryChoice === 'auto' ? suggestedCategoryId : manualCategory === '__none__' ? null : manualCategory,
-        categoryMode: categoryChoice === 'auto' ? 'auto' : 'manual'
+        categoryId: categoryIsManual ? null : suggestedCategoryId,
+        categoryName: categoryIsManual ? categoryText.trim() || null : undefined,
+        categoryMode: categoryIsManual ? 'manual' : 'auto'
       }, itemText.trim() && !matchedItem ? itemText.trim() : undefined);
       const current = new Date();
-      setContent(''); setEffort(''); setPeriodDate(dateKey(current)); setRecordTime(localTime(current)); setCategoryChoice('auto');
+      setContent(''); setEffort(''); setPeriodDate(dateKey(current)); setRecordTime(localTime(current)); setCategoryText(''); setCategoryIsManual(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '保存失败，请重试');
     } finally { setSaving(false); }
@@ -98,7 +100,7 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
       <label><span>记录到</span><select aria-label="记录到" value={periodKind} onChange={(event) => setPeriodKind(event.target.value as WorkLogPeriodKind)}><option value="day">某一天</option><option value="week">某一周</option></select></label>
       <label><span>{periodKind === 'day' ? '日期' : '周内日期'}</span><input aria-label="记录日期" type="date" value={periodDate} onChange={(event) => setPeriodDate(event.target.value)} /></label>
       <label><span>时间</span><input aria-label="记录时间" type="time" value={recordTime} onChange={(event) => setRecordTime(event.target.value)} /></label>
-      <label><span>分类</span><select aria-label="分类" value={categoryChoice} onChange={(event) => setCategoryChoice(event.target.value)}><option value="auto">自动：{suggestedCategory?.name ?? '未匹配'}</option><option value="manual:__none__">手动：未分类</option>{categories.map((category) => <option key={category.id} value={`manual:${category.id}`}>{category.name}</option>)}</select></label>
+      <label><span>分类</span><input aria-label="分类" list={categoryListId} maxLength={80} value={categoryIsManual ? categoryText : suggestedCategory?.name ?? ''} onChange={(event) => { setCategoryText(event.target.value); setCategoryIsManual(true); }} placeholder="输入分类，或等待自动匹配" /><datalist id={categoryListId}>{categories.map((category) => <option key={category.id} value={category.name} />)}</datalist></label>
       <button className="record-button" type="submit" disabled={saving}>{saving ? '保存中' : '记录'}<ArrowRight size={17} /></button>
     </div>
     {error && <p className="inline-error" role="alert">{error}</p>}

@@ -23,7 +23,8 @@ interface EditDraft {
   periodKind: WorkLogPeriodKind;
   date: string;
   time: string;
-  categoryChoice: string;
+  categoryName: string;
+  categoryMode: 'auto' | 'manual';
 }
 
 const localTime = (date: Date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -35,6 +36,7 @@ const toIso = (date: string, time: string) => {
 
 export function LogList({ logs, items, categories = [], contentOptions = [], onSave, onDelete, onRestore }: Props) {
   const contentListId = useId();
+  const categoryListId = useId();
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [undoId, setUndoId] = useState<string | null>(null);
   const itemMap = new Map(items.map((item) => [item.id, item.title]));
@@ -49,19 +51,20 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
       id: log.id, workItemId: log.workItemId ?? '', content: log.content,
       effort: log.effortMinutes == null ? '' : String(log.effortMinutes / 60), periodKind: log.periodKind,
       date: log.periodKind === 'day' ? log.periodStart : dateKey(occurred), time: localTime(occurred),
-      categoryChoice: log.categoryMode === 'auto' ? 'auto' : `manual:${log.categoryId ?? '__none__'}`
+      categoryName: log.categoryId ? categoryMap.get(log.categoryId)?.name ?? '' : '',
+      categoryMode: log.categoryMode
     });
   };
   const saveEdit = async (log: WorkLog) => {
     if (!draft?.content.trim()) return;
-    const manualCategory = draft.categoryChoice.startsWith('manual:') ? draft.categoryChoice.slice(7) : null;
     await onSave({
       id: log.id, workItemId: draft.workItemId || null, content: draft.content.trim(),
       effortMinutes: parseEffort(draft.effort), periodKind: draft.periodKind,
       periodStart: draft.periodKind === 'week' ? weekStart(draft.date) : draft.date,
       occurredAt: toIso(draft.date, draft.time),
-      categoryId: draft.categoryChoice === 'auto' ? null : manualCategory === '__none__' ? null : manualCategory,
-      categoryMode: draft.categoryChoice === 'auto' ? 'auto' : 'manual'
+      categoryId: draft.categoryMode === 'auto' ? null : undefined,
+      categoryName: draft.categoryMode === 'manual' ? draft.categoryName.trim() || null : undefined,
+      categoryMode: draft.categoryMode
     });
     setDraft(null);
   };
@@ -87,7 +90,7 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
               <label><span>记录到</span><select aria-label="编辑记录到" value={draft.periodKind} onChange={(event) => setDraft({ ...draft, periodKind: event.target.value as WorkLogPeriodKind })}><option value="day">某一天</option><option value="week">某一周</option></select></label>
               <label><span>日期</span><input aria-label="编辑日期" type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} /></label>
               <label><span>时间</span><input aria-label="编辑时间" type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} /></label>
-              <label><span>分类</span><select aria-label="编辑分类" value={draft.categoryChoice} onChange={(event) => setDraft({ ...draft, categoryChoice: event.target.value })}><option value="auto">自动：{suggestion?.name ?? '未匹配'}</option><option value="manual:__none__">手动：未分类</option>{categories.map((entry) => <option key={entry.id} value={`manual:${entry.id}`}>{entry.name}</option>)}</select></label>
+              <label><span>分类</span><input aria-label="编辑分类" list={categoryListId} maxLength={80} value={draft.categoryMode === 'auto' ? suggestion?.name ?? '' : draft.categoryName} onChange={(event) => setDraft({ ...draft, categoryName: event.target.value, categoryMode: 'manual' })} placeholder="输入分类，或留空" /><datalist id={categoryListId}>{categories.map((entry) => <option key={entry.id} value={entry.name} />)}</datalist></label>
             </div>
             <div className="edit-actions"><button className="quiet-button" aria-label="取消修改" onClick={() => setDraft(null)}><X size={15} />取消</button><button className="record-button" aria-label="保存修改" onClick={() => void saveEdit(log)}><Check size={15} />保存</button></div>
           </div> : <>

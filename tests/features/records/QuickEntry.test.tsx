@@ -31,6 +31,21 @@ describe('quick work entry', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ content: '本周完成终审', periodKind: 'week', periodStart: '2026-09-07' }), '课程上线');
   });
 
+  it('accepts a typed category name so the save layer can learn it', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<QuickEntry items={[]} initialDate="2026-09-08" onSave={onSave} />);
+
+    await user.type(screen.getByLabelText('工作内容'), '完成课程脚本');
+    expect(screen.getByLabelText('分类').tagName).toBe('INPUT');
+    await user.type(screen.getByLabelText('分类'), '内容制作');
+    await user.click(screen.getByRole('button', { name: '记录' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      content: '完成课程脚本', categoryName: '内容制作', categoryMode: 'manual'
+    }), undefined);
+  });
+
   it('selects a recent item with one click and protects unsaved text', async () => {
     const user = userEvent.setup();
     const item = { id: 'item-1', title: '课程上线', status: 'active' as const, summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' };
@@ -57,7 +72,7 @@ describe('quick work entry', () => {
     const contentList = document.getElementById(screen.getByLabelText('工作内容').getAttribute('list')!);
     expect(contentList?.querySelector('option[value="完成脚本初稿"]')).toBeInTheDocument();
     await user.type(screen.getByLabelText('工作内容'), '修改脚本');
-    expect(screen.getByLabelText('分类')).toHaveDisplayValue('自动：内容制作');
+    expect(screen.getByLabelText('分类')).toHaveValue('内容制作');
     await user.clear(screen.getByLabelText('记录日期'));
     await user.type(screen.getByLabelText('记录日期'), '2026-09-10');
     await user.clear(screen.getByLabelText('记录时间'));
