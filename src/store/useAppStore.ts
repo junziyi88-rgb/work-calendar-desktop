@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { WorkItem, WorkItemInput, WorkLog, WorkLogData, WorkLogInput, WorkLogSettings } from '../shared/contracts';
+import type { Category, CategoryInput, WorkItem, WorkItemInput, WorkLog, WorkLogData, WorkLogInput, WorkLogSettings } from '../shared/contracts';
 
-const EMPTY_DATA: WorkLogData = { items: [], logs: [], settings: { theme: 'system', backupRetention: 14 } };
+const EMPTY_DATA: WorkLogData = { items: [], logs: [], categories: [], contentOptions: [], settings: { theme: 'system', backupRetention: 14 } };
 
 interface AppState {
   data: WorkLogData;
@@ -16,6 +16,8 @@ interface AppState {
   saveLog(input: WorkLogInput, newItemTitle?: string): Promise<WorkLog>;
   deleteLog(id: string): Promise<void>;
   restoreLog(id: string): Promise<void>;
+  saveCategory(input: CategoryInput): Promise<Category>;
+  deleteCategory(id: string): Promise<void>;
   saveSettings(input: Partial<WorkLogSettings>): Promise<void>;
   createBackup(): Promise<void>;
   exportData(format: 'csv' | 'json'): Promise<void>;
@@ -59,6 +61,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   deleteLog: async (id) => { await bridge().deleteWorkLog(id); await get().hydrate(); },
   restoreLog: async (id) => { await bridge().restoreWorkLog(id); await get().hydrate(); },
+  saveCategory: async (input) => { const category = await bridge().saveCategory(input); await get().hydrate(); return category; },
+  deleteCategory: async (id) => { await bridge().deleteCategory(id); await get().hydrate(); },
   saveSettings: async (input) => {
     const settings = await bridge().saveSettings(input);
     set((state) => ({ data: { ...state.data, settings } }));

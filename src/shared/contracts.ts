@@ -235,6 +235,8 @@ export interface WorkCalendarBridge {
   saveWorkLog(input: WorkLogInput): Promise<WorkLog>;
   deleteWorkLog(id: string): Promise<void>;
   restoreWorkLog(id: string): Promise<void>;
+  saveCategory(input: CategoryInput): Promise<Category>;
+  deleteCategory(id: string): Promise<void>;
   saveSettings(input: Partial<WorkLogSettings>): Promise<WorkLogSettings>;
   createBackup(): Promise<BackupInfo>;
   listBackups(): Promise<BackupInfo[]>;

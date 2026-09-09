@@ -42,4 +42,55 @@ describe('work log repositories', () => {
     repositories.workLogs.restore(log.id);
     expect(repositories.workLogData().logs).toEqual([expect.objectContaining({ id: log.id })]);
   });
+
+  it('stores occurrence time and edits both the linked item and work content', () => {
+    const first = repositories.workItems.save({ title: '课程上线' });
+    const second = repositories.workItems.save({ title: 'OKR整理' });
+    const saved = repositories.workLogs.save({
+      workItemId: first.id, content: '完成脚本初稿', effortMinutes: 45,
+      periodKind: 'day', periodStart: '2026-09-08', occurredAt: '2026-09-08T03:26:00.000Z'
+    });
+    const edited = repositories.workLogs.save({
+      id: saved.id, workItemId: second.id, content: '整理本月进展', effortMinutes: 60,
+      periodKind: 'day', periodStart: '2026-09-09', occurredAt: '2026-09-09T08:15:00.000Z'
+    });
+
+    expect(edited).toMatchObject({ workItemId: second.id, content: '整理本月进展', occurredAt: '2026-09-09T08:15:00.000Z' });
+    expect(repositories.workItems.get(second.id)?.summary).toBe('整理本月进展');
+  });
+
+  it('automatically classifies logs while preserving manual category overrides', () => {
+    const writing = repositories.categories.save({ name: '内容制作', color: '#EDF3EC', keywords: ['脚本'] });
+    const coordination = repositories.categories.save({ name: '项目协作', color: '#E1F3FE', keywords: ['会议'] });
+    const item = repositories.workItems.save({ title: '课程上线' });
+    const automatic = repositories.workLogs.save({ workItemId: item.id, content: '完成脚本修改', periodKind: 'day', periodStart: '2026-09-08' });
+    expect(automatic).toMatchObject({ categoryId: writing.id, categoryMode: 'auto', occurredAt: '2026-09-08T04:00:00.000Z' });
+
+    const manual = repositories.workLogs.save({ ...automatic, content: '参加会议', categoryId: writing.id, categoryMode: 'manual' });
+    expect(manual).toMatchObject({ categoryId: writing.id, categoryMode: 'manual' });
+
+    repositories.categories.save({ ...coordination, keywords: ['脚本', '会议'] });
+    expect(repositories.workLogs.get(manual.id)).toMatchObject({ categoryId: writing.id, categoryMode: 'manual' });
+  });
+
+  it('reclassifies auto logs after rule changes and returns reusable content options', () => {
+    const category = repositories.categories.save({ name: '内容制作', color: '#EDF3EC', keywords: ['文案'] });
+    const first = repositories.workLogs.save({ content: '完成脚本修改', periodKind: 'day', periodStart: '2026-09-08' });
+    repositories.workLogs.save({ content: '参加周会', periodKind: 'day', periodStart: '2026-09-08' });
+    expect(first.categoryId).toBeNull();
+
+    repositories.categories.save({ ...category, keywords: ['脚本'] });
+    const data = repositories.workLogData();
+    expect(repositories.workLogs.get(first.id)?.categoryId).toBe(category.id);
+    expect(data.categories).toEqual([expect.objectContaining({ id: category.id, keywords: ['脚本'] })]);
+    expect(data.contentOptions).toEqual(['参加周会', '完成脚本修改']);
+  });
+
+  it('allows editing a log that remains linked to a completed item', () => {
+    const item = repositories.workItems.save({ title: '已结项事项' });
+    const log = repositories.workLogs.save({ workItemId: item.id, content: '完成交付', periodKind: 'day', periodStart: '2026-09-08' });
+    repositories.workItems.complete(item.id);
+
+    expect(repositories.workLogs.save({ ...log, content: '完成交付与归档' }).content).toBe('完成交付与归档');
+  });
 });

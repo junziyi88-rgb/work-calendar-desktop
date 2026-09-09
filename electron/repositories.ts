@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { BindParams, Database } from 'sql.js';
 import type {
-  AppSettings, CalendarData, CalendarQuery, DailyReview, DeletedItem, Project,
+  AppSettings, CalendarData, CalendarQuery, Category, CategoryInput, DailyReview, DeletedItem, Project,
   SegmentInput, Tag, Task, TaskInput, TimeSegment, WorkItem, WorkItemInput,
   WorkLog, WorkLogData, WorkLogInput
 } from '../src/shared/contracts';
+import { historicalContentOptions, matchCategory } from '../src/domain/categories';
 import type { AppDatabase } from './database';
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -32,12 +33,14 @@ type TaskRow = { id: string; title: string; project_id: string | null; notes: st
 type SegmentRow = { id: string; task_id: string; start: string; end: string | null; source: TimeSegment['source']; note: string; deleted_at: string | null; created_at: string; updated_at: string };
 type WorkItemRow = { id: string; title: string; status: WorkItem['status']; summary: string; completed_at: string | null; deleted_at: string | null; created_at: string; updated_at: string };
 type WorkLogRow = { id: string; work_item_id: string | null; content: string; effort_minutes: number | null; period_kind: WorkLog['periodKind']; period_start: string; occurred_at: string; category_id: string | null; category_mode: WorkLog['categoryMode']; deleted_at: string | null; created_at: string; updated_at: string };
+type CategoryRow = { id: string; name: string; color: string; keywords_json: string; deleted_at: string | null; created_at: string; updated_at: string };
 
 const mapProject = (item: ProjectRow): Project => ({ id: item.id, name: item.name, color: item.color, archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapTag = (item: TagRow): Tag => ({ id: item.id, name: item.name, color: item.color, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapSegment = (item: SegmentRow): TimeSegment => ({ id: item.id, taskId: item.task_id, start: item.start, end: item.end, source: item.source, note: item.note, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapWorkItem = (item: WorkItemRow): WorkItem => ({ id: item.id, title: item.title, status: item.status, summary: item.summary, completedAt: item.completed_at, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapWorkLog = (item: WorkLogRow): WorkLog => ({ id: item.id, workItemId: item.work_item_id, content: item.content, effortMinutes: item.effort_minutes, periodKind: item.period_kind, periodStart: item.period_start, occurredAt: item.occurred_at, categoryId: item.category_id, categoryMode: item.category_mode, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
+const mapCategory = (item: CategoryRow): Category => ({ id: item.id, name: item.name, color: item.color, keywords: JSON.parse(item.keywords_json) as string[], deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
 
 export function createRepositories(database: AppDatabase, now: () => string = () => new Date().toISOString()) {
   const { db } = database;
@@ -56,8 +59,8 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
         db.run(`INSERT OR IGNORE INTO work_items (id,title,status,summary,completed_at,deleted_at,created_at,updated_at)
           VALUES (?,?,?,?,?,NULL,?,?)`, [task.id, task.title, task.status === 'completed' ? 'completed' : 'active', task.notes, task.status === 'completed' ? task.completed_at ?? timestamp : null, task.created_at, task.updated_at]);
         if (task.notes.trim()) {
-          db.run(`INSERT OR IGNORE INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,deleted_at,created_at,updated_at)
-            VALUES (?,?,?,?,?,?,NULL,?,?)`, [`legacy-note-${task.id}`, task.id, task.notes.trim(), null, 'day', task.updated_at.slice(0, 10), task.updated_at, task.updated_at]);
+          db.run(`INSERT OR IGNORE INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,NULL,'auto',NULL,?,?)`, [`legacy-note-${task.id}`, task.id, task.notes.trim(), null, 'day', task.updated_at.slice(0, 10), task.updated_at, task.updated_at, task.updated_at]);
         }
       }
       for (const segment of legacySegments) {
@@ -66,8 +69,8 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
         const end = segment.end ?? timestamp;
         const duration = Math.max(0, Math.min(1440, Math.round((new Date(end).getTime() - new Date(segment.start).getTime()) / 60_000)));
         const content = segment.note.trim() || (segment.end ? task.title : `${task.title}（旧版计时迁移估算）`);
-        db.run(`INSERT OR IGNORE INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,deleted_at,created_at,updated_at)
-          VALUES (?,?,?,?,?,?,NULL,?,?)`, [`legacy-segment-${segment.id}`, task.id, content, duration, 'day', segment.start.slice(0, 10), segment.created_at, segment.updated_at]);
+        db.run(`INSERT OR IGNORE INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,?,NULL,'auto',NULL,?,?)`, [`legacy-segment-${segment.id}`, task.id, content, duration, 'day', segment.start.slice(0, 10), segment.start, segment.created_at, segment.updated_at]);
       }
       db.run("INSERT INTO meta(key,value) VALUES ('legacy_migrated_v2','1')");
       db.run('COMMIT');
@@ -96,6 +99,53 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
     restore: (id: string) => { db.run('UPDATE work_items SET deleted_at=NULL, updated_at=? WHERE id=?', [now(), id]); persist(); }
   };
 
+  const normalizedKeywords = (keywords: string[]) => {
+    const seen = new Set<string>();
+    return keywords.flatMap((keyword) => {
+      const value = keyword.trim(); const key = value.toLocaleLowerCase();
+      if (!value || seen.has(key)) return [];
+      seen.add(key); return [value];
+    });
+  };
+
+  const categoryRows = (includeDeleted = false) => rows<CategoryRow>(db, `SELECT * FROM categories ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY created_at, id`);
+  const reclassifyAutoLogs = () => {
+    const available = categoryRows().map(mapCategory);
+    for (const log of rows<WorkLogRow>(db, "SELECT * FROM work_logs WHERE category_mode!='manual'")) {
+      const itemTitle = log.work_item_id ? workItems.get(log.work_item_id)?.title ?? '' : '';
+      db.run("UPDATE work_logs SET category_id=?, category_mode='auto' WHERE id=?", [matchCategory(available, itemTitle, log.content), log.id]);
+    }
+  };
+
+  const categories = {
+    list: (includeDeleted = false) => categoryRows(includeDeleted).map(mapCategory),
+    get: (id: string) => { const item = row<CategoryRow>(db, 'SELECT * FROM categories WHERE id=?', [id]); return item ? mapCategory(item) : null; },
+    save: (input: CategoryInput) => {
+      const name = input.name.trim();
+      if (!name) throw new Error('请输入分类名称');
+      const id = input.id ?? randomUUID(); const timestamp = now();
+      const keywords = normalizedKeywords(input.keywords);
+      const existing = input.id ? row<CategoryRow>(db, 'SELECT * FROM categories WHERE id=?', [input.id]) : null;
+      db.run('BEGIN');
+      try {
+        if (existing) db.run('UPDATE categories SET name=?,color=?,keywords_json=?,deleted_at=NULL,updated_at=? WHERE id=?', [name, input.color, JSON.stringify(keywords), timestamp, id]);
+        else db.run('INSERT INTO categories (id,name,color,keywords_json,deleted_at,created_at,updated_at) VALUES (?,?,?,?,NULL,?,?)', [id, name, input.color, JSON.stringify(keywords), timestamp, timestamp]);
+        reclassifyAutoLogs();
+        db.run('COMMIT');
+      } catch (error) { db.run('ROLLBACK'); throw error; }
+      persist(); return categories.get(id)!;
+    },
+    softDelete: (id: string) => {
+      const timestamp = now(); db.run('BEGIN');
+      try {
+        db.run('UPDATE categories SET deleted_at=?,updated_at=? WHERE id=?', [timestamp, timestamp, id]);
+        reclassifyAutoLogs();
+        db.run('COMMIT');
+      } catch (error) { db.run('ROLLBACK'); throw error; }
+      persist();
+    }
+  };
+
   const workLogs = {
     list: (includeDeleted = false) => rows<WorkLogRow>(db, `SELECT * FROM work_logs ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY period_start DESC, created_at DESC`).map(mapWorkLog),
     get: (id: string) => { const item = row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [id]); return item ? mapWorkLog(item) : null; },
@@ -103,11 +153,16 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
       const content = input.content.trim();
       if (!content) throw new Error('请输入工作内容');
       if (input.effortMinutes != null && (input.effortMinutes < 0 || input.effortMinutes > 1440)) throw new Error('单条记录不能超过 24 小时');
-      if (input.workItemId && workItems.get(input.workItemId)?.status === 'completed') throw new Error('请先重新打开事项');
       const id = input.id ?? randomUUID(); const timestamp = now();
       const existing = input.id ? row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [input.id]) : null;
-      if (existing) db.run('UPDATE work_logs SET work_item_id=?, content=?, effort_minutes=?, period_kind=?, period_start=?, updated_at=? WHERE id=?', [input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, timestamp, id]);
-      else db.run('INSERT INTO work_logs VALUES (?,?,?,?,?,?,NULL,?,?)', [id, input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, timestamp, timestamp]);
+      if (input.workItemId && workItems.get(input.workItemId)?.status === 'completed' && existing?.work_item_id !== input.workItemId) throw new Error('请先重新打开事项');
+      const categoryMode = input.categoryMode ?? existing?.category_mode ?? 'auto';
+      const itemTitle = input.workItemId ? workItems.get(input.workItemId)?.title ?? '' : '';
+      const categoryId = categoryMode === 'manual' ? input.categoryId ?? null : matchCategory(categories.list(), itemTitle, content);
+      const occurredAt = input.occurredAt ?? existing?.occurred_at ?? timestamp;
+      if (existing) db.run('UPDATE work_logs SET work_item_id=?,content=?,effort_minutes=?,period_kind=?,period_start=?,occurred_at=?,category_id=?,category_mode=?,updated_at=? WHERE id=?', [input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, id]);
+      else db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?)`, [id, input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, timestamp]);
       if (input.workItemId) db.run('UPDATE work_items SET summary=?, updated_at=? WHERE id=?', [content, timestamp, input.workItemId]);
       persist(); return workLogs.get(id)!;
     },
@@ -238,10 +293,12 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
   const workLogData = (): WorkLogData => ({
     items: workItems.list(),
     logs: workLogs.list(),
+    categories: categories.list(),
+    contentOptions: historicalContentOptions(workLogs.list()),
     settings: { theme: settings.get().theme, backupRetention: settings.get().backupRetention }
   });
 
-  return { workItems, workLogs, workLogData, projects, tags, tasks, segments, reviews, settings, recycle, calendar };
+  return { workItems, workLogs, categories, workLogData, projects, tags, tasks, segments, reviews, settings, recycle, calendar };
 }
 
 export type Repositories = ReturnType<typeof createRepositories>;

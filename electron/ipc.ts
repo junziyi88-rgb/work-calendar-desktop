@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, dialog, ipcMain, type BrowserWindow } from 'electron';
-import { workItemInputSchema, workLogInputSchema } from '../src/shared/schemas';
+import { categoryInputSchema, workItemInputSchema, workLogInputSchema } from '../src/shared/schemas';
 import { serializeWorkLogCsv, serializeWorkLogJson } from '../src/domain/exports';
 import type { AppDatabase } from './database';
 import type { Repositories } from './repositories';
@@ -30,6 +30,8 @@ export function registerIpc(deps: IpcDependencies) {
   handle('work-log:save', mutate((input) => r.workLogs.save(workLogInputSchema.parse(input))));
   handle('work-log:delete', mutate((id) => r.workLogs.softDelete(String(id))));
   handle('work-log:restore', mutate((id) => r.workLogs.restore(String(id))));
+  handle('category:save', mutate((input) => r.categories.save(categoryInputSchema.parse(input))));
+  handle('category:delete', mutate((id) => r.categories.softDelete(String(id))));
   handle('settings:save', mutate((input) => {
     const current = r.settings.get();
     const next = r.settings.save({ theme: input?.theme ?? current.theme, backupRetention: input?.backupRetention ?? current.backupRetention });
