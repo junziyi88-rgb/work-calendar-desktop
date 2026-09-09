@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Pencil, Trash2, X } from 'lucide-react';
 import type { Category, CategoryInput } from '../../shared/contracts';
+import { ResizablePanel } from '../../components/ResizablePanel';
 
 interface Props {
   categories: Category[];
@@ -44,8 +44,9 @@ export function CategoryManager({ categories, onSave, onDelete, onClose }: Props
   };
 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <ResizablePanel id="category-manager" label="分类管理" className="category-resize" minHeight={360}>
     <section className="category-dialog" role="dialog" aria-modal="true" aria-label="分类管理">
-      <header><div><span className="kicker">关键词自动匹配</span><h2>分类管理</h2><p>系统会同时识别关联事项和工作内容。</p></div><button className="icon-button" aria-label="关闭分类管理" onClick={onClose}><X size={17} /></button></header>
+      <header><div><span className="kicker">关键词自动匹配</span><h2>分类管理</h2><p>系统会同时识别关联事项和工作内容。</p></div><button className="dialog-close" aria-label="关闭分类管理" onClick={onClose}>关闭</button></header>
       <form className="category-form" onSubmit={submit}>
         <label><span>分类名称</span><input aria-label="分类名称" value={name} onChange={(event) => setName(event.target.value)} placeholder="例如：内容制作" /></label>
         <label><span>颜色</span><select aria-label="分类颜色" value={color} onChange={(event) => setColor(event.target.value)}>{COLORS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}</select></label>
@@ -55,10 +56,11 @@ export function CategoryManager({ categories, onSave, onDelete, onClose }: Props
       <div className="category-list">
         {categories.length ? categories.map((category) => <article key={category.id}>
           <i style={{ backgroundColor: category.color }} /><div><strong>{category.name}</strong><p>{category.keywords.length ? category.keywords.join(' · ') : '尚未设置关键词'}</p></div>
-          <button aria-label={`编辑 ${category.name}`} onClick={() => edit(category)}><Pencil size={15} /></button>
-          {confirmDelete === category.id ? <button className="confirm-delete" aria-label={`确认删除 ${category.name}`} onClick={() => void onDelete(category.id)}>确认删除</button> : <button aria-label={`删除 ${category.name}`} onClick={() => setConfirmDelete(category.id)}><Trash2 size={15} /></button>}
+          <button aria-label={`编辑 ${category.name}`} onClick={() => edit(category)}>编辑</button>
+          {confirmDelete === category.id ? <button className="confirm-delete" aria-label={`确认删除 ${category.name}`} onClick={() => void onDelete(category.id)}>确认删除</button> : <button aria-label={`删除 ${category.name}`} onClick={() => setConfirmDelete(category.id)}>删除</button>}
         </article>) : <div className="empty-state"><strong>还没有分类</strong><p>添加关键词后，新记录会自动归类。</p></div>}
       </div>
     </section>
+    </ResizablePanel>
   </div>;
 }

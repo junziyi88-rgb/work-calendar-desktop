@@ -4,6 +4,7 @@ import { filterWorkLogs } from '../../domain/categories';
 import { formatEffort } from '../../domain/effort';
 import { addDays, dateKey, formatWeekRange, periodRange, weekStart } from '../../domain/periods';
 import type { WorkLogData, WorkLogInput } from '../../shared/contracts';
+import { ResizablePanel } from '../../components/ResizablePanel';
 import { QuickEntry } from './QuickEntry';
 import { LogList } from './LogList';
 
@@ -34,7 +35,10 @@ export function RecordPage({ data, initialDate, onSaveLog, onDeleteLog, onRestor
   const move = (amount: number) => setSelected(addDays(selected, amount * (scope === 'week' ? 7 : 1)));
   return <section className="page record-page">
     <header className="page-intro"><div><p className="kicker">轻量工作记录</p><h1>做完了，就记一句。</h1><p>不用计时，也不用整理复杂字段。</p></div><div className="today-total"><span>{scope === 'day' ? '当前日期' : '当前周'}工时</span><strong>{formatEffort(total)}</strong></div></header>
-    <QuickEntry items={data.items} categories={data.categories} contentOptions={data.contentOptions} initialDate={selected} onSave={onSaveLog} />
+    <ResizablePanel id="records-entry" label="记录输入" minHeight={220}>
+      <QuickEntry items={data.items} categories={data.categories} contentOptions={data.contentOptions} initialDate={selected} onSave={onSaveLog} />
+    </ResizablePanel>
+    <ResizablePanel id="records-list" label="记录列表" className="record-list-resize" minHeight={360}>
     <div className="period-panel">
       <div className="period-toolbar">
         <div className="period-nav"><button aria-label="上一周期" onClick={() => move(-1)}><ChevronLeft size={17} /></button><button className="today-link" onClick={() => setSelected(today)}>今天</button><button aria-label="下一周期" onClick={() => move(1)}><ChevronRight size={17} /></button><input aria-label="浏览日期" type="date" value={selected} onChange={(event) => setSelected(event.target.value)} /></div>
@@ -55,5 +59,6 @@ export function RecordPage({ data, initialDate, onSaveLog, onDeleteLog, onRestor
       <div className="section-heading"><div><span>{scope === 'day' ? selected.replaceAll('-', '.') : formatWeekRange(selected)}</span><h2>{scope === 'day' ? '当天记录' : '本周进展'}</h2></div><span>{visibleLogs.length} 条</span></div>
       <LogList logs={visibleLogs} items={data.items} categories={data.categories} contentOptions={data.contentOptions} onSave={onSaveLog} onDelete={onDeleteLog} onRestore={onRestoreLog} />
     </div>
+    </ResizablePanel>
   </section>;
 }

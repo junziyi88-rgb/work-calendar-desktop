@@ -236,7 +236,35 @@ Add one “管理分类” menu action and an accessible compact dialog; use fou
 Run: `npm test -- tests/features/categories/CategoryManager.test.tsx tests/smoke/App.test.tsx`
 Expected: all selected tests pass.
 
-### Task 8: Release, installation, and data-preservation verification
+### Task 8: Resizable and persistent module layout
+
+**Files:**
+- Create: `src/components/ResizablePanel.tsx`
+- Create: `tests/components/ResizablePanel.test.tsx`
+- Modify: `src/features/records/RecordPage.tsx`
+- Modify: `src/features/items/ItemsPage.tsx`
+- Modify: `src/features/summary/SummaryPage.tsx`
+- Modify: `src/features/categories/CategoryManager.tsx`
+- Modify: `src/styles/app.css`
+
+- [x] **Step 1: Write failing persistence and page-integration tests**
+
+Assert restored dimensions, resize persistence, per-module reset controls, and integration on records and summaries.
+
+- [x] **Step 2: Implement a reusable resizable wrapper**
+
+Use native desktop resizing, local storage per module, minimum sizes, overflow access, and a low-visibility reset control.
+
+- [x] **Step 3: Apply it to every major content module**
+
+Cover record entry/list, item creation/list/detail, summary calendar/filters/content/stats, and category management without changing the main navigation.
+
+- [x] **Step 4: Run focused tests**
+
+Run: `npm test -- tests/components/ResizablePanel.test.tsx tests/features/records/RecordPage.test.tsx tests/features/summary/SummaryPage.test.tsx`
+Expected: all selected tests pass.
+
+### Task 9: Release, installation, and data-preservation verification
 
 **Files:**
 - Modify: `package.json`
