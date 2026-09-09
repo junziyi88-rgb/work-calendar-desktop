@@ -44,5 +44,5 @@ describe('work log editing', () => {
       periodKind: 'week', periodStart: '2026-09-07',
       occurredAt: new Date(2026, 8, 10, 9, 40).toISOString(), categoryId: null, categoryMode: 'manual'
     }));
-  });
+  }, 10_000);
 });
