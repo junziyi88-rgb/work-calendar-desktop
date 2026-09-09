@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { durationMinutes, splitSegmentByLocalDay } from '../../src/domain/time';
+import { formatSummaryPeriod, weekNumber } from '../../src/domain/periods';
 import type { TimeSegment } from '../../src/shared/contracts';
 
 const segment = (start: string, end: string | null): TimeSegment => ({
@@ -27,5 +28,11 @@ describe('time calculations', () => {
     ], new Date('2026-08-25T02:30:00.000Z'));
 
     expect(result).toBe(75);
+  });
+
+  it('formats explicit ISO week and month labels across year boundaries', () => {
+    expect(weekNumber('2027-01-01')).toEqual({ year: 2026, week: 53 });
+    expect(formatSummaryPeriod('week', '2026-09-09')).toBe('2026年第37周 · 9月7日—9月13日');
+    expect(formatSummaryPeriod('month', '2026-09-09')).toBe('2026年9月');
   });
 });

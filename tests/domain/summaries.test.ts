@@ -9,11 +9,13 @@ const data: WorkLogData = {
     { id: 'item-2', title: '桌面工具', status: 'completed', summary: '完成精简设计', createdAt: '2026-09-01T00:00:00.000Z', completedAt: '2026-09-09T00:00:00.000Z', deletedAt: null, updatedAt: '2026-09-09T00:00:00.000Z' }
   ],
   logs: [
-    { id: 'log-1', workItemId: 'item-1', content: '完成第三轮脚本修改', effortMinutes: 120, periodKind: 'day', periodStart: '2026-09-08', createdAt: '2026-09-08T01:00:00.000Z', updatedAt: '2026-09-08T01:00:00.000Z', deletedAt: null },
-    { id: 'log-2', workItemId: 'item-1', content: '交付终审', effortMinutes: 30, periodKind: 'week', periodStart: '2026-09-07', createdAt: '2026-09-09T01:00:00.000Z', updatedAt: '2026-09-09T01:00:00.000Z', deletedAt: null },
-    { id: 'log-3', workItemId: 'item-2', content: '完成精简设计', effortMinutes: 60, periodKind: 'day', periodStart: '2026-09-09', createdAt: '2026-09-09T02:00:00.000Z', updatedAt: '2026-09-09T02:00:00.000Z', deletedAt: null },
-    { id: 'log-4', workItemId: null, content: '临时沟通', effortMinutes: null, periodKind: 'day', periodStart: '2026-09-10', createdAt: '2026-09-10T02:00:00.000Z', updatedAt: '2026-09-10T02:00:00.000Z', deletedAt: null }
+    { id: 'log-1', workItemId: 'item-1', content: '完成第三轮脚本修改', effortMinutes: 120, periodKind: 'day', periodStart: '2026-09-08', occurredAt: '2026-09-08T01:00:00.000Z', categoryId: null, categoryMode: 'auto', createdAt: '2026-09-08T01:00:00.000Z', updatedAt: '2026-09-08T01:00:00.000Z', deletedAt: null },
+    { id: 'log-2', workItemId: 'item-1', content: '交付终审', effortMinutes: 30, periodKind: 'week', periodStart: '2026-09-07', occurredAt: '2026-09-09T01:00:00.000Z', categoryId: null, categoryMode: 'auto', createdAt: '2026-09-09T01:00:00.000Z', updatedAt: '2026-09-09T01:00:00.000Z', deletedAt: null },
+    { id: 'log-3', workItemId: 'item-2', content: '完成精简设计', effortMinutes: 60, periodKind: 'day', periodStart: '2026-09-09', occurredAt: '2026-09-09T02:00:00.000Z', categoryId: null, categoryMode: 'auto', createdAt: '2026-09-09T02:00:00.000Z', updatedAt: '2026-09-09T02:00:00.000Z', deletedAt: null },
+    { id: 'log-4', workItemId: null, content: '临时沟通', effortMinutes: null, periodKind: 'day', periodStart: '2026-09-10', occurredAt: '2026-09-10T02:00:00.000Z', categoryId: null, categoryMode: 'auto', createdAt: '2026-09-10T02:00:00.000Z', updatedAt: '2026-09-10T02:00:00.000Z', deletedAt: null }
   ],
+  categories: [],
+  contentOptions: ['完成第三轮脚本修改', '交付终审', '完成精简设计', '临时沟通'],
   settings: { theme: 'system', backupRetention: 14 }
 };
 

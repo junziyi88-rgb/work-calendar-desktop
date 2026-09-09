@@ -6,7 +6,9 @@ import type { WorkLogData } from '../../../src/shared/contracts';
 
 const data: WorkLogData = {
   items: [{ id: 'item-1', title: '桌面工作记录工具', status: 'active', summary: '重新梳理真实需求', completedAt: null, deletedAt: null, createdAt: '2026-08-25T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' }],
-  logs: [{ id: 'log-1', workItemId: 'item-1', content: '重新梳理真实需求', effortMinutes: 1110, periodKind: 'week', periodStart: '2026-09-07', deletedAt: null, createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' }],
+  logs: [{ id: 'log-1', workItemId: 'item-1', content: '重新梳理真实需求', effortMinutes: 1110, periodKind: 'week', periodStart: '2026-09-07', occurredAt: '2026-09-08T00:00:00.000Z', categoryId: null, categoryMode: 'auto', deletedAt: null, createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' }],
+  categories: [],
+  contentOptions: ['重新梳理真实需求'],
   settings: { theme: 'system', backupRetention: 14 }
 };
 

@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QuickEntry } from '../../../src/features/records/QuickEntry';
+
+afterEach(() => vi.useRealTimers());
 
 describe('quick work entry', () => {
   it('turns a short typed update into a manual work log', async () => {
@@ -13,7 +15,7 @@ describe('quick work entry', () => {
     await user.type(screen.getByLabelText('工时'), '1.5h');
     await user.click(screen.getByRole('button', { name: '记录' }));
 
-    expect(onSave).toHaveBeenCalledWith({ content: '完成第三轮脚本修改', effortMinutes: 90, periodKind: 'day', periodStart: '2026-09-08', workItemId: null }, undefined);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ content: '完成第三轮脚本修改', effortMinutes: 90, periodKind: 'day', periodStart: '2026-09-08', workItemId: null, categoryMode: 'auto' }), undefined);
   });
 
   it('can create an item while recording week-level progress', async () => {
@@ -40,5 +42,31 @@ describe('quick work entry', () => {
     const event = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('defaults to the system time, allows manual changes, and suggests historical content and category', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 9, 14, 5));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const onSave = vi.fn();
+    const category = { id: 'category-1', name: '内容制作', color: '#EDF3EC', keywords: ['脚本'], deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' };
+    render(<QuickEntry items={[]} categories={[category]} contentOptions={['完成脚本初稿']} initialDate="2026-09-09" onSave={onSave} />);
+
+    expect(screen.getByLabelText('记录日期')).toHaveValue('2026-09-09');
+    expect(screen.getByLabelText('记录时间')).toHaveValue('14:05');
+    const contentList = document.getElementById(screen.getByLabelText('工作内容').getAttribute('list')!);
+    expect(contentList?.querySelector('option[value="完成脚本初稿"]')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('工作内容'), '修改脚本');
+    expect(screen.getByLabelText('分类')).toHaveDisplayValue('自动：内容制作');
+    await user.clear(screen.getByLabelText('记录日期'));
+    await user.type(screen.getByLabelText('记录日期'), '2026-09-10');
+    await user.clear(screen.getByLabelText('记录时间'));
+    await user.type(screen.getByLabelText('记录时间'), '09:40');
+    await user.click(screen.getByRole('button', { name: '记录' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      periodStart: '2026-09-10', occurredAt: new Date(2026, 8, 10, 9, 40).toISOString(),
+      categoryId: 'category-1', categoryMode: 'auto'
+    }), undefined);
   });
 });

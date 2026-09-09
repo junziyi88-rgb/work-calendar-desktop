@@ -46,3 +46,19 @@ export function formatWeekRange(anchor: string) {
   const short = (value: string) => `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日`;
   return `${short(start)}—${short(end)}`;
 }
+
+export function weekNumber(value: string) {
+  const date = parseDate(value);
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const year = date.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+  return { year, week };
+}
+
+export function formatSummaryPeriod(kind: SummaryKind, anchor: string) {
+  if (kind === 'month') return `${Number(anchor.slice(0, 4))}年${Number(anchor.slice(5, 7))}月`;
+  const { year, week } = weekNumber(anchor);
+  return `${year}年第${week}周 · ${formatWeekRange(anchor)}`;
+}
