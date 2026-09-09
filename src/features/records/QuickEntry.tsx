@@ -4,6 +4,7 @@ import { parseEffort } from '../../domain/effort';
 import { dateKey, weekStart } from '../../domain/periods';
 import { matchCategory } from '../../domain/categories';
 import type { Category, WorkItem, WorkLogInput, WorkLogPeriodKind } from '../../shared/contracts';
+import { ResizableField } from '../../components/ResizableField';
 
 interface Props {
   items: WorkItem[];
@@ -42,6 +43,7 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
   const matchedItem = useMemo(() => activeItems.find((item) => item.title.trim().toLocaleLowerCase() === itemText.trim().toLocaleLowerCase()), [activeItems, itemText]);
   const suggestedCategoryId = useMemo(() => matchCategory(categories, matchedItem?.title ?? itemText, content), [categories, content, itemText, matchedItem]);
   const suggestedCategory = categories.find((category) => category.id === suggestedCategoryId);
+  const fieldScope = compact ? 'item-entry' : 'record-entry';
 
   useEffect(() => setPeriodDate(initialDate), [initialDate]);
   useEffect(() => {
@@ -85,22 +87,22 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
     <div className="entry-primary">
       <label className="entry-item-field">
         <span>关联事项</span>
-        <input aria-label="关联事项" list={itemListId} value={itemText} onChange={(event) => setItemText(event.target.value)} placeholder="选择或新建事项（可选）" />
+        <ResizableField id={`${fieldScope}-item`} label="关联事项" minHeight={49}><input aria-label="关联事项" list={itemListId} value={itemText} onChange={(event) => setItemText(event.target.value)} placeholder="选择或新建事项（可选）" /></ResizableField>
         <datalist id={itemListId}>{activeItems.map((item) => <option key={item.id} value={item.title} />)}</datalist>
       </label>
       <label className="entry-content-field">
         <span>工作内容</span>
-        <input aria-label="工作内容" list={contentListId} autoFocus={!compact} value={content} onChange={(event) => setContent(event.target.value)} placeholder="这次做了什么，推进到了哪一步？" />
+        <ResizableField id={`${fieldScope}-content`} label="工作内容" minHeight={49}><input aria-label="工作内容" list={contentListId} autoFocus={!compact} value={content} onChange={(event) => setContent(event.target.value)} placeholder="这次做了什么，推进到了哪一步？" /></ResizableField>
         <datalist id={contentListId}>{contentOptions.map((option) => <option key={option.toLocaleLowerCase()} value={option} />)}</datalist>
       </label>
     </div>
     {!compact && activeItems.length > 0 && <div className="recent-items"><span>最近事项</span>{activeItems.slice(0, 5).map((item) => <button type="button" key={item.id} onClick={() => setItemText(item.title)}>{item.title}</button>)}</div>}
     <div className="entry-meta">
-      <label><span>工时</span><input aria-label="工时" value={effort} onChange={(event) => setEffort(event.target.value)} placeholder="如 1.5h" /></label>
+      <label><span>工时</span><ResizableField id={`${fieldScope}-effort`} label="工时"><input aria-label="工时" value={effort} onChange={(event) => setEffort(event.target.value)} placeholder="如 1.5h" /></ResizableField></label>
       <label><span>记录到</span><select aria-label="记录到" value={periodKind} onChange={(event) => setPeriodKind(event.target.value as WorkLogPeriodKind)}><option value="day">某一天</option><option value="week">某一周</option></select></label>
       <label><span>{periodKind === 'day' ? '日期' : '周内日期'}</span><input aria-label="记录日期" type="date" value={periodDate} onChange={(event) => setPeriodDate(event.target.value)} /></label>
       <label><span>时间</span><input aria-label="记录时间" type="time" value={recordTime} onChange={(event) => setRecordTime(event.target.value)} /></label>
-      <label><span>分类</span><input aria-label="分类" list={categoryListId} maxLength={80} value={categoryIsManual ? categoryText : suggestedCategory?.name ?? ''} onChange={(event) => { setCategoryText(event.target.value); setCategoryIsManual(true); }} placeholder="输入分类，或等待自动匹配" /><datalist id={categoryListId}>{categories.map((category) => <option key={category.id} value={category.name} />)}</datalist></label>
+      <label><span>分类</span><ResizableField id={`${fieldScope}-category`} label="分类"><input aria-label="分类" list={categoryListId} maxLength={80} value={categoryIsManual ? categoryText : suggestedCategory?.name ?? ''} onChange={(event) => { setCategoryText(event.target.value); setCategoryIsManual(true); }} placeholder="输入分类，或等待自动匹配" /></ResizableField><datalist id={categoryListId}>{categories.map((category) => <option key={category.id} value={category.name} />)}</datalist></label>
       <button className="record-button" type="submit" disabled={saving}>{saving ? '保存中' : '记录'}<ArrowRight size={17} /></button>
     </div>
     {error && <p className="inline-error" role="alert">{error}</p>}

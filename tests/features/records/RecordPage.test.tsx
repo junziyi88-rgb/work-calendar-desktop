@@ -22,8 +22,8 @@ describe('record filters', () => {
   it('filters the current period by historical work content and category', async () => {
     const user = userEvent.setup();
     render(<RecordPage data={data} initialDate="2026-09-09" onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
-    expect(screen.getByRole('button', { name: '恢复记录输入默认大小' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '恢复记录列表默认大小' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '恢复记录输入默认大小' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '恢复记录列表默认大小' })).not.toBeInTheDocument();
     expect([...document.querySelectorAll('.log-main p')].map((node) => node.textContent)).toEqual(['完成脚本', '参加会议']);
     await user.selectOptions(screen.getByLabelText('筛选工作内容'), '完成脚本');
     await user.selectOptions(screen.getByLabelText('筛选分类'), 'category-1');

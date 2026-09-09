@@ -4,14 +4,14 @@ interface Props {
   id: string;
   label: string;
   children: ReactNode;
-  className?: string;
+  minWidth?: number;
   minHeight?: number;
 }
 
-const storageKey = (id: string) => `work-log:panel:${id}`;
+const storageKey = (id: string) => `work-log:field:${id}`;
 
-export function ResizablePanel({ id, label, children, className = '', minHeight = 80 }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
+export function ResizableField({ id, label, children, minWidth = 72, minHeight = 40 }: Props) {
+  const ref = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
     const element = ref.current;
@@ -33,16 +33,7 @@ export function ResizablePanel({ id, label, children, className = '', minHeight 
     return () => observer.disconnect();
   }, [id]);
 
-  const reset = () => {
-    const element = ref.current;
-    if (!element) return;
-    element.style.removeProperty('width');
-    element.style.removeProperty('height');
-    localStorage.removeItem(storageKey(id));
-  };
-
-  return <div ref={ref} data-testid={`resizable-${id}`} className={`resizable-panel ${className}`.trim()} style={{ minHeight }} title="拖动右下角调整模块大小">
+  return <span ref={ref} className="resizable-field" style={{ minWidth, minHeight }} title={`拖动右下角调整${label}输入区域大小`}>
     {children}
-    <button type="button" className="resize-reset" aria-label={`恢复${label}默认大小`} onClick={reset}>复原</button>
-  </div>;
+  </span>;
 }

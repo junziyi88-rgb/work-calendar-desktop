@@ -19,9 +19,9 @@ describe('work summaries', () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText');
     render(<SummaryPage data={data} initialAnchor="2026-09-08" onExport={vi.fn()} />);
-    expect(screen.getByRole('button', { name: '恢复总结日历默认大小' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '恢复总结筛选默认大小' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '恢复总结内容默认大小' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '恢复总结日历默认大小' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '恢复总结筛选默认大小' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '恢复总结内容默认大小' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '2026年第37周 · 9月7日—9月13日' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '回到本周' })).toBeInTheDocument();
     expect(screen.getByText('持续推进')).toBeInTheDocument();

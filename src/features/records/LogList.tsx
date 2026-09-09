@@ -4,6 +4,7 @@ import { matchCategory } from '../../domain/categories';
 import { formatEffort, parseEffort } from '../../domain/effort';
 import { dateKey, formatWeekRange, weekStart } from '../../domain/periods';
 import type { Category, WorkItem, WorkLog, WorkLogInput, WorkLogPeriodKind } from '../../shared/contracts';
+import { ResizableField } from '../../components/ResizableField';
 
 interface Props {
   logs: WorkLog[];
@@ -85,12 +86,12 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
           {editing ? <div className="log-edit-panel">
             <div className="edit-grid">
               <label><span>关联事项</span><select aria-label="编辑关联事项" value={draft.workItemId} onChange={(event) => setDraft({ ...draft, workItemId: event.target.value })}><option value="">其他工作</option>{availableItems.filter((item) => item.status === 'active' || item.id === log.workItemId).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-              <label className="edit-content"><span>工作内容</span><input aria-label="编辑工作内容" list={contentListId} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} /></label>
-              <label><span>工时</span><input aria-label="编辑工时" value={draft.effort} onChange={(event) => setDraft({ ...draft, effort: event.target.value })} placeholder="如 1.5h" /></label>
+              <label className="edit-content"><span>工作内容</span><ResizableField id="edit-log-content" label="编辑工作内容"><input aria-label="编辑工作内容" list={contentListId} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} /></ResizableField></label>
+              <label><span>工时</span><ResizableField id="edit-log-effort" label="编辑工时"><input aria-label="编辑工时" value={draft.effort} onChange={(event) => setDraft({ ...draft, effort: event.target.value })} placeholder="如 1.5h" /></ResizableField></label>
               <label><span>记录到</span><select aria-label="编辑记录到" value={draft.periodKind} onChange={(event) => setDraft({ ...draft, periodKind: event.target.value as WorkLogPeriodKind })}><option value="day">某一天</option><option value="week">某一周</option></select></label>
               <label><span>日期</span><input aria-label="编辑日期" type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} /></label>
               <label><span>时间</span><input aria-label="编辑时间" type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} /></label>
-              <label><span>分类</span><input aria-label="编辑分类" list={categoryListId} maxLength={80} value={draft.categoryMode === 'auto' ? suggestion?.name ?? '' : draft.categoryName} onChange={(event) => setDraft({ ...draft, categoryName: event.target.value, categoryMode: 'manual' })} placeholder="输入分类，或留空" /><datalist id={categoryListId}>{categories.map((entry) => <option key={entry.id} value={entry.name} />)}</datalist></label>
+              <label><span>分类</span><ResizableField id="edit-log-category" label="编辑分类"><input aria-label="编辑分类" list={categoryListId} maxLength={80} value={draft.categoryMode === 'auto' ? suggestion?.name ?? '' : draft.categoryName} onChange={(event) => setDraft({ ...draft, categoryName: event.target.value, categoryMode: 'manual' })} placeholder="输入分类，或留空" /></ResizableField><datalist id={categoryListId}>{categories.map((entry) => <option key={entry.id} value={entry.name} />)}</datalist></label>
             </div>
             <div className="edit-actions"><button className="quiet-button" aria-label="取消修改" onClick={() => setDraft(null)}><X size={15} />取消</button><button className="record-button" aria-label="保存修改" onClick={() => void saveEdit(log)}><Check size={15} />保存</button></div>
           </div> : <>
