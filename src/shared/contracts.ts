@@ -5,6 +5,24 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 export type WorkItemStatus = 'active' | 'completed';
 export type WorkLogPeriodKind = 'day' | 'week';
 export type SummaryKind = 'week' | 'month';
+export type CategoryMode = 'auto' | 'manual';
+
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+  keywords: string[];
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CategoryInput {
+  id?: string;
+  name: string;
+  color: string;
+  keywords: string[];
+}
 
 export interface WorkItem {
   id: string;
@@ -24,6 +42,9 @@ export interface WorkLog {
   effortMinutes: number | null;
   periodKind: WorkLogPeriodKind;
   periodStart: string;
+  occurredAt: string;
+  categoryId: string | null;
+  categoryMode: CategoryMode;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +63,9 @@ export interface WorkLogInput {
   effortMinutes?: number | null;
   periodKind: WorkLogPeriodKind;
   periodStart: string;
+  occurredAt?: string;
+  categoryId?: string | null;
+  categoryMode?: CategoryMode;
 }
 
 export interface WorkLogSettings {
@@ -52,6 +76,8 @@ export interface WorkLogSettings {
 export interface WorkLogData {
   items: WorkItem[];
   logs: WorkLog[];
+  categories: Category[];
+  contentOptions: string[];
   settings: WorkLogSettings;
 }
 

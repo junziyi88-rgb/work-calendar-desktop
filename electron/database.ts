@@ -3,7 +3,6 @@ import path from 'node:path';
 import initSqlJs, { type Database } from 'sql.js';
 
 const SCHEMA = `
-PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
@@ -41,11 +40,18 @@ CREATE TABLE IF NOT EXISTS work_items (
   summary TEXT NOT NULL DEFAULT '', completed_at TEXT, deleted_at TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS categories (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
+  keywords_json TEXT NOT NULL DEFAULT '[]', deleted_at TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS work_logs (
   id TEXT PRIMARY KEY, work_item_id TEXT, content TEXT NOT NULL, effort_minutes INTEGER,
-  period_kind TEXT NOT NULL, period_start TEXT NOT NULL, deleted_at TEXT,
+  period_kind TEXT NOT NULL, period_start TEXT NOT NULL, occurred_at TEXT,
+  category_id TEXT, category_mode TEXT NOT NULL DEFAULT 'auto', deleted_at TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-  FOREIGN KEY(work_item_id) REFERENCES work_items(id)
+  FOREIGN KEY(work_item_id) REFERENCES work_items(id),
+  FOREIGN KEY(category_id) REFERENCES categories(id)
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_planned ON tasks(planned_start, planned_end);
 CREATE INDEX IF NOT EXISTS idx_segments_range ON segments(start, end);
@@ -53,8 +59,32 @@ CREATE INDEX IF NOT EXISTS idx_segments_task ON segments(task_id);
 CREATE INDEX IF NOT EXISTS idx_work_logs_period ON work_logs(period_start, period_kind);
 CREATE INDEX IF NOT EXISTS idx_work_logs_item ON work_logs(work_item_id);
 CREATE INDEX IF NOT EXISTS idx_work_items_updated ON work_items(updated_at);
-INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', '2');
 `;
+
+function tableColumns(db: Database, table: string) {
+  const result = db.exec(`PRAGMA table_info(${table})`)[0];
+  return new Set((result?.values ?? []).map((entry) => String(entry[1])));
+}
+
+function applySchema(db: Database) {
+  db.run('PRAGMA foreign_keys = ON');
+  db.run('BEGIN');
+  try {
+    db.run(SCHEMA);
+    const columns = tableColumns(db, 'work_logs');
+    if (!columns.has('occurred_at')) db.run('ALTER TABLE work_logs ADD COLUMN occurred_at TEXT');
+    if (!columns.has('category_id')) db.run('ALTER TABLE work_logs ADD COLUMN category_id TEXT');
+    if (!columns.has('category_mode')) db.run("ALTER TABLE work_logs ADD COLUMN category_mode TEXT NOT NULL DEFAULT 'auto'");
+    db.run('CREATE INDEX IF NOT EXISTS idx_work_logs_category ON work_logs(category_id)');
+    db.run("UPDATE work_logs SET occurred_at=created_at WHERE occurred_at IS NULL OR occurred_at=''");
+    db.run("UPDATE work_logs SET category_mode='auto' WHERE category_mode IS NULL OR category_mode=''");
+    db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('schema_version','3')");
+    db.run('COMMIT');
+  } catch (error) {
+    db.run('ROLLBACK');
+    throw error;
+  }
+}
 
 export class AppDatabase {
   constructor(public readonly db: Database, private readonly filePath: string | null) {}
@@ -87,7 +117,7 @@ async function sqlRuntime() {
 export async function createMemoryDatabase() {
   const SQL = await sqlRuntime();
   const database = new AppDatabase(new SQL.Database(), null);
-  database.db.run(SCHEMA);
+  applySchema(database.db);
   return database;
 }
 
@@ -95,7 +125,7 @@ export async function openDatabase(filePath: string) {
   const SQL = await sqlRuntime();
   const bytes = fs.existsSync(filePath) ? fs.readFileSync(filePath) : undefined;
   const database = new AppDatabase(bytes ? new SQL.Database(bytes) : new SQL.Database(), filePath);
-  database.db.run(SCHEMA);
+  applySchema(database.db);
   database.flush();
   return database;
 }

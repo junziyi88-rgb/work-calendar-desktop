@@ -40,5 +40,15 @@ export const workLogInputSchema = z.object({
   content: z.string().trim().min(1, '请输入工作内容').max(10_000),
   effortMinutes: z.number().int().min(0).max(1440).nullable().optional(),
   periodKind: z.enum(['day', 'week']),
-  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效')
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效'),
+  occurredAt: z.iso.datetime().optional(),
+  categoryId: z.string().min(1).nullable().optional(),
+  categoryMode: z.enum(['auto', 'manual']).optional()
+});
+
+export const categoryInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().trim().min(1, '请输入分类名称').max(40),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, '分类颜色格式无效'),
+  keywords: z.array(z.string().trim().min(1).max(80)).max(50)
 });
