@@ -73,6 +73,26 @@ describe('work log repositories', () => {
     expect(repositories.workLogs.get(manual.id)).toMatchObject({ categoryId: writing.id, categoryMode: 'manual' });
   });
 
+  it('creates or reuses typed categories and learns the full work content', () => {
+    const first = repositories.workLogs.save({
+      content: '完成课程脚本', periodKind: 'day', periodStart: '2026-09-08',
+      categoryName: '内容制作', categoryMode: 'manual'
+    });
+    const created = repositories.categories.list()[0];
+    expect(first).toMatchObject({ categoryId: created.id, categoryMode: 'manual' });
+    expect(created).toMatchObject({ name: '内容制作', keywords: ['完成课程脚本'] });
+
+    repositories.workLogs.save({
+      content: '整理课程封面', periodKind: 'day', periodStart: '2026-09-08',
+      categoryName: '  内容制作  ', categoryMode: 'manual'
+    });
+    expect(repositories.categories.list()).toHaveLength(1);
+    expect(repositories.categories.list()[0].keywords).toEqual(['完成课程脚本', '整理课程封面']);
+
+    const automatic = repositories.workLogs.save({ content: '完成课程脚本', periodKind: 'day', periodStart: '2026-09-09' });
+    expect(automatic).toMatchObject({ categoryId: created.id, categoryMode: 'auto' });
+  });
+
   it('reclassifies auto logs after rule changes and returns reusable content options', () => {
     const category = repositories.categories.save({ name: '内容制作', color: '#EDF3EC', keywords: ['文案'] });
     const first = repositories.workLogs.save({ content: '完成脚本修改', periodKind: 'day', periodStart: '2026-09-08' });

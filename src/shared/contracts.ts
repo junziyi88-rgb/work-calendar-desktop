@@ -65,6 +65,7 @@ export interface WorkLogInput {
   periodStart: string;
   occurredAt?: string;
   categoryId?: string | null;
+  categoryName?: string | null;
   categoryMode?: CategoryMode;
 }
 

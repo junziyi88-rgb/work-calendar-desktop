@@ -43,6 +43,7 @@ export const workLogInputSchema = z.object({
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效'),
   occurredAt: z.iso.datetime().optional(),
   categoryId: z.string().min(1).nullable().optional(),
+  categoryName: z.string().trim().max(80).nullable().optional(),
   categoryMode: z.enum(['auto', 'manual']).optional()
 });
 

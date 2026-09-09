@@ -146,6 +146,24 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
     }
   };
 
+  const resolveTypedCategory = (categoryName: string | null | undefined, content: string) => {
+    const name = categoryName?.trim() ?? '';
+    if (!name) return null;
+    const normalizedName = name.toLocaleLowerCase();
+    const existing = categories.list().find((category) => category.name.trim().toLocaleLowerCase() === normalizedName);
+    const learnedKey = content.toLocaleLowerCase();
+    const keywords = existing?.keywords ?? [];
+    const hasLearnedContent = keywords.some((keyword) => keyword.trim().toLocaleLowerCase() === learnedKey);
+    if (existing && hasLearnedContent) return existing.id;
+    const colors = ['#E1F3FE', '#EDF3EC', '#FBF3DB', '#FDEBEC'];
+    return categories.save({
+      ...(existing ? { id: existing.id } : {}),
+      name: existing?.name ?? name,
+      color: existing?.color ?? colors[categories.list().length % colors.length],
+      keywords: hasLearnedContent ? keywords : [...keywords, content]
+    }).id;
+  };
+
   const workLogs = {
     list: (includeDeleted = false) => rows<WorkLogRow>(db, `SELECT * FROM work_logs ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY period_start DESC, created_at DESC`).map(mapWorkLog),
     get: (id: string) => { const item = row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [id]); return item ? mapWorkLog(item) : null; },
@@ -158,7 +176,9 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
       if (input.workItemId && workItems.get(input.workItemId)?.status === 'completed' && existing?.work_item_id !== input.workItemId) throw new Error('请先重新打开事项');
       const categoryMode = input.categoryMode ?? existing?.category_mode ?? 'auto';
       const itemTitle = input.workItemId ? workItems.get(input.workItemId)?.title ?? '' : '';
-      const categoryId = categoryMode === 'manual' ? input.categoryId ?? null : matchCategory(categories.list(), itemTitle, content);
+      const categoryId = categoryMode === 'manual'
+        ? input.categoryName !== undefined ? resolveTypedCategory(input.categoryName, content) : input.categoryId ?? null
+        : matchCategory(categories.list(), itemTitle, content);
       const occurredAt = input.occurredAt ?? existing?.occurred_at ?? timestamp;
       if (existing) db.run('UPDATE work_logs SET work_item_id=?,content=?,effort_minutes=?,period_kind=?,period_start=?,occurred_at=?,category_id=?,category_mode=?,updated_at=? WHERE id=?', [input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, id]);
       else db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
