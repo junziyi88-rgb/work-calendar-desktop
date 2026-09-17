@@ -10,6 +10,11 @@ const category: Category = {
 };
 
 describe('category manager', () => {
+  it('explains that keywords match item names rather than work content', () => {
+    render(<CategoryManager categories={[]} onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByText('系统只根据事项名称匹配关键词；工作内容不会参与分类。')).toBeInTheDocument();
+  });
+
   it('creates a category with trimmed and de-duplicated keywords', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();

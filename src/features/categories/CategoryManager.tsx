@@ -45,7 +45,7 @@ export function CategoryManager({ categories, onSave, onDelete, onClose }: Props
 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="category-dialog" role="dialog" aria-modal="true" aria-label="分类管理">
-      <header><div><span className="kicker">关键词自动匹配</span><h2>分类管理</h2><p>系统会同时识别关联事项和工作内容。</p></div><button className="dialog-close" aria-label="关闭分类管理" onClick={onClose}>关闭</button></header>
+      <header><div><span className="kicker">关键词自动匹配</span><h2>分类管理</h2><p>系统只根据事项名称匹配关键词；工作内容不会参与分类。</p></div><button className="dialog-close" aria-label="关闭分类管理" onClick={onClose}>关闭</button></header>
       <form className="category-form" onSubmit={submit}>
         <label><span>分类名称</span><ResizableField id="category-name" label="分类名称"><input aria-label="分类名称" value={name} onChange={(event) => setName(event.target.value)} placeholder="例如：内容制作" /></ResizableField></label>
         <label><span>颜色</span><select aria-label="分类颜色" value={color} onChange={(event) => setColor(event.target.value)}>{COLORS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}</select></label>
@@ -57,7 +57,7 @@ export function CategoryManager({ categories, onSave, onDelete, onClose }: Props
           <i style={{ backgroundColor: category.color }} /><div><strong>{category.name}</strong><p>{category.keywords.length ? category.keywords.join(' · ') : '尚未设置关键词'}</p></div>
           <button aria-label={`编辑 ${category.name}`} onClick={() => edit(category)}>编辑</button>
           {confirmDelete === category.id ? <button className="confirm-delete" aria-label={`确认删除 ${category.name}`} onClick={() => void onDelete(category.id)}>确认删除</button> : <button aria-label={`删除 ${category.name}`} onClick={() => setConfirmDelete(category.id)}>删除</button>}
-        </article>) : <div className="empty-state"><strong>还没有分类</strong><p>添加关键词后，新记录会自动归类。</p></div>}
+        </article>) : <div className="empty-state"><strong>还没有分类</strong><p>添加事项名称关键词后，事项及其记录会自动归类。</p></div>}
       </div>
     </section>
   </div>;
