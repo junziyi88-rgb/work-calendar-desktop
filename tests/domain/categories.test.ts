@@ -16,15 +16,16 @@ const log = (overrides: Partial<WorkLog>): WorkLog => ({
 });
 
 describe('work log categories', () => {
-  it('matches item titles and content case-insensitively with longest keyword precedence', () => {
-    expect(matchCategory(categories, '课程排期', '完成课程脚本 V3')).toBe('writing');
-    expect(matchCategory(categories, '周会议', '同步进度')).toBe('planning');
-    expect(matchCategory(categories, '', '完成终审')).toBeNull();
+  it('matches only item titles case-insensitively with longest keyword precedence', () => {
+    expect(matchCategory(categories, '课程脚本排期')).toBe('writing');
+    expect(matchCategory(categories, '周会议')).toBe('planning');
+    expect(matchCategory(categories, '普通事项')).toBeNull();
+    expect(Reflect.apply(matchCategory, null, [categories, '普通事项', '完成课程脚本'])).toBeNull();
   });
 
   it('uses category creation order when equally long keywords match', () => {
     const tied = categories.map((category) => ({ ...category, keywords: category.id === 'planning' ? ['复核'] : category.id === 'writing' ? ['校对'] : [] }));
-    expect(matchCategory(tied, '', '复核后校对')).toBe('planning');
+    expect(matchCategory(tied, '复核后校对')).toBe('planning');
   });
 
   it('derives unique historical content by most recent active use', () => {

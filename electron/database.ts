@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS reviews (
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS work_items (
   id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
-  summary TEXT NOT NULL DEFAULT '', completed_at TEXT, deleted_at TEXT,
+  summary TEXT NOT NULL DEFAULT '', category_id TEXT, category_mode TEXT NOT NULL DEFAULT 'auto',
+  completed_at TEXT, deleted_at TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS categories (
@@ -71,14 +72,18 @@ function applySchema(db: Database) {
   db.run('BEGIN');
   try {
     db.run(SCHEMA);
-    const columns = tableColumns(db, 'work_logs');
-    if (!columns.has('occurred_at')) db.run('ALTER TABLE work_logs ADD COLUMN occurred_at TEXT');
-    if (!columns.has('category_id')) db.run('ALTER TABLE work_logs ADD COLUMN category_id TEXT');
-    if (!columns.has('category_mode')) db.run("ALTER TABLE work_logs ADD COLUMN category_mode TEXT NOT NULL DEFAULT 'auto'");
+    const logColumns = tableColumns(db, 'work_logs');
+    if (!logColumns.has('occurred_at')) db.run('ALTER TABLE work_logs ADD COLUMN occurred_at TEXT');
+    if (!logColumns.has('category_id')) db.run('ALTER TABLE work_logs ADD COLUMN category_id TEXT');
+    if (!logColumns.has('category_mode')) db.run("ALTER TABLE work_logs ADD COLUMN category_mode TEXT NOT NULL DEFAULT 'auto'");
+    const itemColumns = tableColumns(db, 'work_items');
+    if (!itemColumns.has('category_id')) db.run('ALTER TABLE work_items ADD COLUMN category_id TEXT');
+    if (!itemColumns.has('category_mode')) db.run("ALTER TABLE work_items ADD COLUMN category_mode TEXT NOT NULL DEFAULT 'auto'");
     db.run('CREATE INDEX IF NOT EXISTS idx_work_logs_category ON work_logs(category_id)');
     db.run("UPDATE work_logs SET occurred_at=created_at WHERE occurred_at IS NULL OR occurred_at=''");
     db.run("UPDATE work_logs SET category_mode='auto' WHERE category_mode IS NULL OR category_mode=''");
-    db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('schema_version','3')");
+    db.run("UPDATE work_items SET category_mode='auto' WHERE category_mode IS NULL OR category_mode=''");
+    db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('schema_version','4')");
     db.run('COMMIT');
   } catch (error) {
     db.run('ROLLBACK');

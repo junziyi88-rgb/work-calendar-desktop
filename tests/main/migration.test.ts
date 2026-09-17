@@ -46,14 +46,19 @@ describe('legacy work calendar migration', () => {
       const repositories = createRepositories(database, () => '2026-09-09T02:00:00.000Z');
       const data = repositories.workLogData();
 
-      expect(data.items).toEqual([expect.objectContaining({ id: 'item-existing', title: '长期事项', summary: '已推进到复核' })]);
+      expect(data.items).toEqual([expect.objectContaining({
+        id: 'item-existing', title: '长期事项', summary: '已推进到复核',
+        categoryId: null, categoryMode: 'auto'
+      })]);
       expect(data.logs).toEqual([expect.objectContaining({
         id: 'log-existing', content: '完成复核稿', effortMinutes: 75,
         occurredAt: '2026-09-08T03:30:00.000Z', categoryId: null, categoryMode: 'auto'
       })]);
-      expect(database.db.exec("SELECT value FROM meta WHERE key='schema_version'")[0].values[0][0]).toBe('3');
+      expect(database.db.exec("SELECT value FROM meta WHERE key='schema_version'")[0].values[0][0]).toBe('4');
       const columns = database.db.exec('PRAGMA table_info(work_logs)')[0].values.map((entry) => entry[1]);
       expect(columns).toEqual(expect.arrayContaining(['occurred_at', 'category_id', 'category_mode']));
+      const itemColumns = database.db.exec('PRAGMA table_info(work_items)')[0].values.map((entry) => entry[1]);
+      expect(itemColumns).toEqual(expect.arrayContaining(['category_id', 'category_mode']));
       expect(database.db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'")[0].values).toHaveLength(1);
     } finally {
       database?.close();

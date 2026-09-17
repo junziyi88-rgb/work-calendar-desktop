@@ -27,6 +27,8 @@ export interface CategoryInput {
 export interface WorkItem {
   id: string;
   title: string;
+  categoryId: string | null;
+  categoryMode: CategoryMode;
   status: WorkItemStatus;
   summary: string;
   completedAt: string | null;
@@ -54,6 +56,9 @@ export interface WorkItemInput {
   id?: string;
   title: string;
   summary?: string;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  categoryMode?: CategoryMode;
 }
 
 export interface WorkLogInput {

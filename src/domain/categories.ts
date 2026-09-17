@@ -8,8 +8,8 @@ export interface WorkLogFilters {
 
 const normalize = (value: string) => value.trim().toLocaleLowerCase();
 
-export function matchCategory(categories: Category[], itemTitle: string, content: string) {
-  const haystack = normalize(`${itemTitle} ${content}`);
+export function matchCategory(categories: Category[], itemTitle: string) {
+  const haystack = normalize(itemTitle);
   const matches = categories
     .filter((category) => !category.deletedAt)
     .flatMap((category, categoryIndex) => category.keywords
