@@ -6,8 +6,8 @@ import type { WorkLogData } from '../../../src/shared/contracts';
 
 const data: WorkLogData = {
   items: [
-    { id: 'item-1', title: '课程上线', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-09T00:00:00.000Z' },
-    { id: 'item-2', title: '内部协作', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-09T00:00:00.000Z' }
+    { id: 'item-1', title: '课程上线', categoryId: 'category-1', categoryMode: 'auto', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-09T00:00:00.000Z' },
+    { id: 'item-2', title: '内部协作', categoryId: null, categoryMode: 'auto', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-09T00:00:00.000Z' }
   ],
   categories: [{ id: 'category-1', name: '内容制作', color: '#EDF3EC', keywords: ['脚本'], deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }],
   contentOptions: ['完成脚本', '参加会议'],
@@ -21,7 +21,7 @@ const data: WorkLogData = {
 describe('record filters', () => {
   it('filters the current period by historical work content and category', async () => {
     const user = userEvent.setup();
-    render(<RecordPage data={data} initialDate="2026-09-09" onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
+    render(<RecordPage data={data} initialDate="2026-09-09" onSaveItem={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
     expect(screen.queryByRole('button', { name: '恢复记录输入默认大小' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '恢复记录列表默认大小' })).not.toBeInTheDocument();
     expect([...document.querySelectorAll('.log-main p')].map((node) => node.textContent)).toEqual(['完成脚本', '参加会议']);

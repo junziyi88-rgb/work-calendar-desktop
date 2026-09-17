@@ -48,7 +48,7 @@ describe('quick work entry', () => {
 
   it('selects a recent item with one click and protects unsaved text', async () => {
     const user = userEvent.setup();
-    const item = { id: 'item-1', title: '课程上线', status: 'active' as const, summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' };
+    const item = { id: 'item-1', title: '课程上线', categoryId: null, categoryMode: 'auto' as const, status: 'active' as const, summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' };
     render(<QuickEntry items={[item]} initialDate="2026-09-08" onSave={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: '课程上线' }));
@@ -65,12 +65,14 @@ describe('quick work entry', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const onSave = vi.fn();
     const category = { id: 'category-1', name: '内容制作', color: '#EDF3EC', keywords: ['脚本'], deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' };
-    render(<QuickEntry items={[]} categories={[category]} contentOptions={['完成脚本初稿']} initialDate="2026-09-09" onSave={onSave} />);
+    const item = { id: 'item-1', title: '课程脚本开发', categoryId: category.id, categoryMode: 'auto' as const, status: 'active' as const, summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' };
+    render(<QuickEntry items={[item]} categories={[category]} contentOptions={['完成脚本初稿']} initialDate="2026-09-09" onSave={onSave} />);
 
     expect(screen.getByLabelText('记录日期')).toHaveValue('2026-09-09');
     expect(screen.getByLabelText('记录时间')).toHaveValue('14:05');
     const contentList = document.getElementById(screen.getByLabelText('工作内容').getAttribute('list')!);
     expect(contentList?.querySelector('option[value="完成脚本初稿"]')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('关联事项'), '课程脚本开发');
     await user.type(screen.getByLabelText('工作内容'), '修改脚本');
     expect(screen.getByLabelText('分类')).toHaveValue('内容制作');
     await user.clear(screen.getByLabelText('记录日期'));

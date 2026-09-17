@@ -28,7 +28,7 @@ export function App() {
   useEffect(() => { document.documentElement.dataset.theme = data.settings.theme; }, [data.settings.theme]);
 
   const content = page === 'records'
-    ? <RecordPage data={data} onSaveLog={saveLog} onDeleteLog={deleteLog} onRestoreLog={restoreLog} />
+    ? <RecordPage data={data} onSaveItem={saveItem} onSaveLog={saveLog} onDeleteLog={deleteLog} onRestoreLog={restoreLog} />
     : page === 'items'
       ? <ItemsPage data={data} onSaveItem={saveItem} onComplete={completeItem} onReopen={reopenItem} onSaveLog={saveLog} onDeleteLog={deleteLog} onRestoreLog={restoreLog} />
       : <SummaryPage data={data} onExport={exportData} />;

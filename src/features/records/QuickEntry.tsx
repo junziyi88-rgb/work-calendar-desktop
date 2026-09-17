@@ -41,7 +41,7 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
   const [error, setError] = useState('');
   const activeItems = useMemo(() => items.filter((item) => item.status === 'active' && !item.deletedAt), [items]);
   const matchedItem = useMemo(() => activeItems.find((item) => item.title.trim().toLocaleLowerCase() === itemText.trim().toLocaleLowerCase()), [activeItems, itemText]);
-  const suggestedCategoryId = useMemo(() => matchCategory(categories, matchedItem?.title ?? itemText, content), [categories, content, itemText, matchedItem]);
+  const suggestedCategoryId = useMemo(() => matchedItem ? matchedItem.categoryId : matchCategory(categories, itemText), [categories, itemText, matchedItem]);
   const suggestedCategory = categories.find((category) => category.id === suggestedCategoryId);
   const fieldScope = compact ? 'item-entry' : 'record-entry';
 

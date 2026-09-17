@@ -3,19 +3,20 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { filterWorkLogs } from '../../domain/categories';
 import { formatEffort } from '../../domain/effort';
 import { addDays, dateKey, formatWeekRange, periodRange, weekStart } from '../../domain/periods';
-import type { WorkLogData, WorkLogInput } from '../../shared/contracts';
+import type { WorkItemInput, WorkLogData, WorkLogInput } from '../../shared/contracts';
 import { QuickEntry } from './QuickEntry';
 import { LogList } from './LogList';
 
 interface Props {
   data: WorkLogData;
   initialDate?: string;
+  onSaveItem(input: WorkItemInput): void | Promise<unknown>;
   onSaveLog(input: WorkLogInput, newItemTitle?: string): void | Promise<unknown>;
   onDeleteLog(id: string): void | Promise<void>;
   onRestoreLog(id: string): void | Promise<void>;
 }
 
-export function RecordPage({ data, initialDate, onSaveLog, onDeleteLog, onRestoreLog }: Props) {
+export function RecordPage({ data, initialDate, onSaveItem, onSaveLog, onDeleteLog, onRestoreLog }: Props) {
   const today = initialDate ?? dateKey(new Date());
   const [selected, setSelected] = useState(today);
   const [scope, setScope] = useState<'day' | 'week'>('day');
@@ -53,7 +54,7 @@ export function RecordPage({ data, initialDate, onSaveLog, onDeleteLog, onRestor
         {(filterItem || filterContent || filterCategory) && <button className="clear-filters" onClick={() => { setFilterItem(''); setFilterContent(''); setFilterCategory(''); }}>清除筛选</button>}
       </div>
       <div className="section-heading"><div><span>{scope === 'day' ? selected.replaceAll('-', '.') : formatWeekRange(selected)}</span><h2>{scope === 'day' ? '当天记录' : '本周进展'}</h2></div><span>{visibleLogs.length} 条</span></div>
-      <LogList logs={visibleLogs} items={data.items} categories={data.categories} contentOptions={data.contentOptions} onSave={onSaveLog} onDelete={onDeleteLog} onRestore={onRestoreLog} />
+      <LogList logs={visibleLogs} items={data.items} categories={data.categories} contentOptions={data.contentOptions} onSave={onSaveLog} onSaveItem={onSaveItem} onDelete={onDeleteLog} onRestore={onRestoreLog} />
     </div>
   </section>;
 }
