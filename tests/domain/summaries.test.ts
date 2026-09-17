@@ -5,8 +5,8 @@ import { periodRange, weekStart } from '../../src/domain/periods';
 
 const data: WorkLogData = {
   items: [
-    { id: 'item-1', title: '课程上线', status: 'active', summary: '完成终审', createdAt: '2026-09-01T00:00:00.000Z', completedAt: null, deletedAt: null, updatedAt: '2026-09-08T00:00:00.000Z' },
-    { id: 'item-2', title: '桌面工具', status: 'completed', summary: '完成精简设计', createdAt: '2026-09-01T00:00:00.000Z', completedAt: '2026-09-09T00:00:00.000Z', deletedAt: null, updatedAt: '2026-09-09T00:00:00.000Z' }
+    { id: 'item-1', title: '课程上线', categoryId: null, categoryMode: 'auto', status: 'active', summary: '完成终审', createdAt: '2026-09-01T00:00:00.000Z', completedAt: null, deletedAt: null, updatedAt: '2026-09-08T00:00:00.000Z' },
+    { id: 'item-2', title: '桌面工具', categoryId: null, categoryMode: 'auto', status: 'completed', summary: '完成精简设计', createdAt: '2026-09-01T00:00:00.000Z', completedAt: '2026-09-09T00:00:00.000Z', deletedAt: null, updatedAt: '2026-09-09T00:00:00.000Z' }
   ],
   logs: [
     { id: 'log-1', workItemId: 'item-1', content: '完成第三轮脚本修改', effortMinutes: 120, periodKind: 'day', periodStart: '2026-09-08', occurredAt: '2026-09-08T01:00:00.000Z', categoryId: null, categoryMode: 'auto', createdAt: '2026-09-08T01:00:00.000Z', updatedAt: '2026-09-08T01:00:00.000Z', deletedAt: null },

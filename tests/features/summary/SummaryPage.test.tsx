@@ -5,7 +5,7 @@ import { SummaryPage } from '../../../src/features/summary/SummaryPage';
 import type { WorkLogData } from '../../../src/shared/contracts';
 
 const data: WorkLogData = {
-  items: [{ id: 'item-1', title: '课程上线', status: 'active', summary: '完成修改', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' }],
+  items: [{ id: 'item-1', title: '课程上线', categoryId: 'category-1', categoryMode: 'auto', status: 'active', summary: '完成修改', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' }],
   logs: [{ id: 'log-1', workItemId: 'item-1', content: '完成第三轮脚本修改', effortMinutes: 210, periodKind: 'day', periodStart: '2026-09-08', occurredAt: '2026-09-08T00:00:00.000Z', categoryId: 'category-1', categoryMode: 'auto', deletedAt: null, createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' }],
   categories: [{ id: 'category-1', name: '内容制作', color: '#EDF3EC', keywords: ['脚本'], deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }],
   contentOptions: ['完成第三轮脚本修改'],

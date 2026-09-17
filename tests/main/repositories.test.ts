@@ -83,10 +83,12 @@ describe('work log repositories', () => {
   });
 
   it('creates or reuses typed item categories and learns complete item names', () => {
+    const waiting = repositories.workItems.save({ title: '课程上线复盘' });
     const first = repositories.workItems.save({ title: '课程上线', categoryName: '内容制作', categoryMode: 'manual' });
     const created = repositories.categories.list()[0];
     expect(first).toMatchObject({ categoryId: created.id, categoryMode: 'manual' });
     expect(created).toMatchObject({ name: '内容制作', keywords: ['课程上线'] });
+    expect(repositories.workItems.get(waiting.id)).toMatchObject({ categoryId: created.id, categoryMode: 'auto' });
 
     repositories.workItems.save({ id: first.id, title: '课程交付', categoryName: '  内容制作  ', categoryMode: 'manual' });
     expect(repositories.categories.list()).toHaveLength(1);

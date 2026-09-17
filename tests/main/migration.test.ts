@@ -30,8 +30,11 @@ describe('legacy work calendar migration', () => {
     expect(database.db.exec('SELECT * FROM tasks')[0].values).toHaveLength(1);
   });
 
-  it('upgrades an existing version 2 database without changing stored work', async () => {
+  it('upgrades an existing version 3 database without changing stored work', async () => {
     const legacy = await createMemoryDatabase();
+    legacy.db.run('ALTER TABLE work_items DROP COLUMN category_id');
+    legacy.db.run('ALTER TABLE work_items DROP COLUMN category_mode');
+    legacy.db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('schema_version','3')");
     legacy.db.run(`INSERT INTO work_items (id,title,status,summary,completed_at,deleted_at,created_at,updated_at)
       VALUES ('item-existing','长期事项','active','已推进到复核',NULL,NULL,'2026-08-01T01:00:00.000Z','2026-09-08T03:30:00.000Z')`);
     legacy.db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,deleted_at,created_at,updated_at)

@@ -154,6 +154,7 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
         if (existing) db.run('UPDATE work_items SET title=?,summary=?,category_id=?,category_mode=?,updated_at=? WHERE id=?', [title, input.summary ?? existing.summary, categoryId, categoryMode, timestamp, id]);
         else db.run(`INSERT INTO work_items (id,title,status,summary,category_id,category_mode,completed_at,deleted_at,created_at,updated_at)
           VALUES (?,?,'active',?,?,?,NULL,NULL,?,?)`, [id, title, input.summary ?? '', categoryId, categoryMode, timestamp, timestamp]);
+        if (categoryMode === 'manual') reclassifyAutoItemsAndLogs();
         db.run("UPDATE work_logs SET category_id=?,category_mode='auto' WHERE work_item_id=? AND category_mode!='manual'", [categoryId, id]);
         db.run('COMMIT');
       } catch (error) { db.run('ROLLBACK'); throw error; }
