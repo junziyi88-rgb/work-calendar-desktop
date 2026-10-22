@@ -19,14 +19,28 @@ const data: WorkLogData = {
 };
 
 describe('record filters', () => {
-  it('filters the current period by historical work content and category', async () => {
+  it('searches the current period by partial item title and work content', async () => {
     const user = userEvent.setup();
     render(<RecordPage data={data} initialDate="2026-09-09" onSaveItem={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
     expect(screen.queryByRole('button', { name: '恢复记录输入默认大小' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '恢复记录列表默认大小' })).not.toBeInTheDocument();
     expect([...document.querySelectorAll('.log-main p')].map((node) => node.textContent)).toEqual(['完成脚本', '参加会议']);
-    await user.selectOptions(screen.getByLabelText('筛选工作内容'), '完成脚本');
+    await user.type(screen.getByLabelText('搜索事项'), '课程');
+    await user.type(screen.getByLabelText('搜索工作内容'), '脚');
     await user.selectOptions(screen.getByLabelText('筛选分类'), 'category-1');
     expect([...document.querySelectorAll('.log-main p')].map((node) => node.textContent)).toEqual(['完成脚本']);
+  });
+
+  it('uses a compact header without promotional copy', () => {
+    render(<RecordPage data={data} initialDate="2026-09-09" onSaveItem={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: '记录' })).toBeInTheDocument();
+    expect(screen.queryByText('做完了，就记一句。')).not.toBeInTheDocument();
+    expect(screen.queryByText('不用计时，也不用整理复杂字段。')).not.toBeInTheDocument();
+  });
+
+  it('places the compact week strip inside the period toolbar and uses a three-column record grid', () => {
+    const { container } = render(<RecordPage data={data} initialDate="2026-09-09" onSaveItem={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
+    expect(container.querySelector('.period-toolbar > .week-strip')).toBeInTheDocument();
+    expect(container.querySelector('.log-list.three-column-list')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResizableField } from '../../src/components/ResizableField';
 import '../../src/styles/app.css';
 
@@ -17,6 +17,8 @@ describe('resizable text fields', () => {
     vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   });
 
+  afterEach(() => vi.restoreAllMocks());
+
   it('restores and persists the size of an editable field', () => {
     localStorage.setItem('work-log:field:record-content', JSON.stringify({ width: 520, height: 96 }));
     render(<ResizableField id="record-content" label="工作内容"><input aria-label="工作内容" /></ResizableField>);
@@ -28,5 +30,16 @@ describe('resizable text fields', () => {
     Object.defineProperty(field, 'offsetHeight', { configurable: true, value: 120 });
     ResizeObserverStub.callback([{ target: field } as unknown as ResizeObserverEntry], {} as ResizeObserver);
     expect(JSON.parse(localStorage.getItem('work-log:field:record-content')!)).toEqual({ width: 560, height: 120 });
+  });
+
+  it('clamps a saved width to its current grid column', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return Number(this.getAttribute('data-test-width') ?? 0);
+    });
+    localStorage.setItem('work-log:field:record-item', JSON.stringify({ width: 720, height: 64 }));
+
+    render(<div data-test-width="280"><ResizableField id="record-item" label="关联事项"><input aria-label="关联事项" /></ResizableField></div>);
+
+    expect(screen.getByTitle('拖动右下角调整关联事项输入区域大小')).toHaveStyle({ width: '280px', height: '64px' });
   });
 });

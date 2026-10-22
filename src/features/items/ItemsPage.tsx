@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, CheckCircle2, Pencil, Plus, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, Pencil, Plus, RotateCcw, Search, X } from 'lucide-react';
 import { ResizableField } from '../../components/ResizableField';
 import { matchCategory } from '../../domain/categories';
 import { formatEffort } from '../../domain/effort';
@@ -22,13 +22,20 @@ export function ItemsPage({ data, onSaveItem, onComplete, onReopen, onSaveLog }:
   const [filter, setFilter] = useState<'active' | 'completed'>('active');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
+  const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [categoryIsManual, setCategoryIsManual] = useState(false);
   const [savingItem, setSavingItem] = useState(false);
   const [editError, setEditError] = useState('');
-  const items = data.items.filter((item) => item.status === filter && !item.deletedAt);
+  const searchQuery = search.trim().toLocaleLowerCase();
+  const items = data.items.filter((item) => {
+    if (item.status !== filter || item.deletedAt) return false;
+    if (!searchQuery) return true;
+    if (item.title.toLocaleLowerCase().includes(searchQuery)) return true;
+    return data.logs.some((log) => !log.deletedAt && log.workItemId === item.id && log.content.toLocaleLowerCase().includes(searchQuery));
+  });
   const selected = data.items.find((item) => item.id === selectedId) ?? null;
   const categoryMap = new Map(data.categories.map((category) => [category.id, category]));
   const logs = useMemo(() => data.logs.filter((log) => log.workItemId === selectedId && !log.deletedAt).sort((a, b) => b.periodStart.localeCompare(a.periodStart) || b.createdAt.localeCompare(a.createdAt)), [data.logs, selectedId]);
@@ -107,10 +114,10 @@ export function ItemsPage({ data, onSaveItem, onComplete, onReopen, onSaveLog }:
   }
 
   return <section className="page items-page">
-    <header className="page-intro"><div><p className="kicker">长期事项</p><h1>每条工作都有来路。</h1><p>跨天、跨周推进的工作，都收在同一条时间线上。</p></div></header>
+    <header className="compact-page-header"><h1>事项</h1><span>{items.length} 个{filter === 'active' ? '进行中' : '已完成'}事项</span></header>
     <form className="new-item-row" onSubmit={create}><Plus size={17} /><ResizableField id="new-item-title" label="新事项名称" minHeight={38}><input aria-label="新事项名称" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="新建一个长期事项" /></ResizableField><button type="submit">添加</button></form>
-    <div className="items-toolbar"><div className="segmented"><button className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}>进行中</button><button className={filter === 'completed' ? 'active' : ''} onClick={() => setFilter('completed')}>已完成</button></div><span>{items.length} 个事项</span></div>
-    <div className="item-list">{items.map((item) => {
+    <div className="items-toolbar"><label className="item-search"><Search size={15} /><input aria-label="搜索事项或工作内容" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索事项或工作内容" /></label><div className="segmented"><button className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}>进行中</button><button className={filter === 'completed' ? 'active' : ''} onClick={() => setFilter('completed')}>已完成</button></div></div>
+    <div className="item-list three-column-list">{items.map((item) => {
       const itemLogs = data.logs.filter((log) => log.workItemId === item.id && !log.deletedAt);
       const minutes = itemLogs.reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
       const first = [...itemLogs].sort((a, b) => a.periodStart.localeCompare(b.periodStart))[0]?.periodStart ?? item.createdAt.slice(0, 10);

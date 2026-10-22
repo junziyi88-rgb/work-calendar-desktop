@@ -1,8 +1,10 @@
-import type { Category, WorkLog } from '../shared/contracts';
+import type { Category, WorkItem, WorkLog } from '../shared/contracts';
 
 export interface WorkLogFilters {
   workItemId?: string;
+  itemQuery?: string;
   content?: string;
+  contentQuery?: string;
   categoryId?: string;
 }
 
@@ -34,11 +36,16 @@ export function historicalContentOptions(logs: WorkLog[]) {
     });
 }
 
-export function filterWorkLogs(logs: WorkLog[], filters: WorkLogFilters) {
+export function filterWorkLogs(logs: WorkLog[], filters: WorkLogFilters, items: WorkItem[] = []) {
   const content = filters.content ? normalize(filters.content) : '';
+  const itemQuery = filters.itemQuery ? normalize(filters.itemQuery) : '';
+  const contentQuery = filters.contentQuery ? normalize(filters.contentQuery) : '';
+  const itemTitles = new Map(items.map((item) => [item.id, normalize(item.title)]));
   return logs.filter((log) => {
     if (filters.workItemId && log.workItemId !== filters.workItemId) return false;
+    if (itemQuery && (!log.workItemId || !itemTitles.get(log.workItemId)?.includes(itemQuery))) return false;
     if (content && normalize(log.content) !== content) return false;
+    if (contentQuery && !normalize(log.content).includes(contentQuery)) return false;
     if (filters.categoryId === '__none__' && log.categoryId !== null) return false;
     if (filters.categoryId && filters.categoryId !== '__none__' && log.categoryId !== filters.categoryId) return false;
     return true;

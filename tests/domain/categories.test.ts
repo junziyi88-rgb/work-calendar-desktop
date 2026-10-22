@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { filterWorkLogs, historicalContentOptions, matchCategory } from '../../src/domain/categories';
-import type { Category, WorkLog } from '../../src/shared/contracts';
+import type { Category, WorkItem, WorkLog } from '../../src/shared/contracts';
 
 const categories: Category[] = [
   { id: 'planning', name: '项目协作', color: '#E1F3FE', keywords: ['会议', '排期'], deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
@@ -46,5 +46,19 @@ describe('work log categories', () => {
       log({ id: 'other-category', categoryId: 'planning' })
     ];
     expect(filterWorkLogs(logs, { workItemId: 'item-1', content: '完成课程脚本', categoryId: 'writing' }).map((entry) => entry.id)).toEqual(['wanted']);
+  });
+
+  it('searches item titles and work content with partial text', () => {
+    const items: WorkItem[] = [
+      { id: 'item-1', title: '秋季课程上线', categoryId: 'writing', categoryMode: 'auto', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+      { id: 'item-2', title: '内部协作', categoryId: 'planning', categoryMode: 'auto', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }
+    ];
+    const logs = [
+      log({ id: 'wanted', workItemId: 'item-1', content: '完成第三轮脚本修改' }),
+      log({ id: 'other-item', workItemId: 'item-2', content: '完成第三轮脚本修改' }),
+      log({ id: 'other-content', workItemId: 'item-1', content: '参加项目会议' })
+    ];
+
+    expect(filterWorkLogs(logs, { itemQuery: '课程', contentQuery: '脚本' }, items).map((entry) => entry.id)).toEqual(['wanted']);
   });
 });

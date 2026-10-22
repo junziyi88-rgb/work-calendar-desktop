@@ -91,7 +91,7 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
 
   return <>
     <datalist id={contentListId}>{contentOptions.map((content) => <option key={content.toLocaleLowerCase()} value={content} />)}</datalist>
-    <div className="log-list">
+    <div className="log-list three-column-list">
       {logs.map((log) => {
         const editing = draft?.id === log.id;
         const category = log.categoryId ? categoryMap.get(log.categoryId) : null;

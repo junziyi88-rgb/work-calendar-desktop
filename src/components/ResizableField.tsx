@@ -20,7 +20,10 @@ export function ResizableField({ id, label, children, minWidth = 72, minHeight =
     if (saved) {
       try {
         const size = JSON.parse(saved) as { width?: number; height?: number };
-        if (size.width && size.width > 0) element.style.width = `${size.width}px`;
+        if (size.width && size.width > 0) {
+          const availableWidth = element.parentElement?.clientWidth ?? 0;
+          element.style.width = `${availableWidth > 0 ? Math.min(size.width, availableWidth) : size.width}px`;
+        }
         if (size.height && size.height > 0) element.style.height = `${size.height}px`;
       } catch { localStorage.removeItem(storageKey(id)); }
     }

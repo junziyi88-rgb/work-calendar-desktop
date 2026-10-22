@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { filterWorkLogs } from '../../domain/categories';
 import { formatEffort } from '../../domain/effort';
@@ -17,6 +17,8 @@ interface Props {
 }
 
 export function RecordPage({ data, initialDate, onSaveItem, onSaveLog, onDeleteLog, onRestoreLog }: Props) {
+  const itemSearchListId = useId();
+  const contentSearchListId = useId();
   const today = initialDate ?? dateKey(new Date());
   const [selected, setSelected] = useState(today);
   const [scope, setScope] = useState<'day' | 'week'>('day');
@@ -28,28 +30,28 @@ export function RecordPage({ data, initialDate, onSaveItem, onSaveLog, onDeleteL
     const periodLogs = scope === 'day'
       ? data.logs.filter((log) => log.periodKind === 'day' && log.periodStart === selected)
       : (() => { const { start, end } = periodRange('week', selected); return data.logs.filter((log) => log.periodStart >= start && log.periodStart < end); })();
-    return filterWorkLogs(periodLogs, { workItemId: filterItem || undefined, content: filterContent || undefined, categoryId: filterCategory || undefined });
-  }, [data.logs, filterCategory, filterContent, filterItem, scope, selected]);
+    return filterWorkLogs(periodLogs, { itemQuery: filterItem || undefined, contentQuery: filterContent || undefined, categoryId: filterCategory || undefined }, data.items);
+  }, [data.items, data.logs, filterCategory, filterContent, filterItem, scope, selected]);
   const total = visibleLogs.reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
 
   const move = (amount: number) => setSelected(addDays(selected, amount * (scope === 'week' ? 7 : 1)));
   return <section className="page record-page">
-    <header className="page-intro"><div><p className="kicker">轻量工作记录</p><h1>做完了，就记一句。</h1><p>不用计时，也不用整理复杂字段。</p></div><div className="today-total"><span>{scope === 'day' ? '当前日期' : '当前周'}工时</span><strong>{formatEffort(total)}</strong></div></header>
+    <header className="compact-page-header"><h1>记录</h1><div className="today-total"><span>{scope === 'day' ? '当前日期' : '当前周'}工时</span><strong>{formatEffort(total)}</strong></div></header>
     <QuickEntry items={data.items} categories={data.categories} contentOptions={data.contentOptions} initialDate={selected} onSave={onSaveLog} />
     <div className="period-panel">
-      <div className="period-toolbar">
+      <div className="period-toolbar compact-period-toolbar">
         <div className="period-nav"><button aria-label="上一周期" onClick={() => move(-1)}><ChevronLeft size={17} /></button><button className="today-link" onClick={() => setSelected(today)}>今天</button><button aria-label="下一周期" onClick={() => move(1)}><ChevronRight size={17} /></button><input aria-label="浏览日期" type="date" value={selected} onChange={(event) => setSelected(event.target.value)} /></div>
+        <div className="week-strip">
+          {weekDays.map((day, index) => {
+            const minutes = data.logs.filter((log) => log.periodKind === 'day' && log.periodStart === day).reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
+            return <button key={day} className={selected === day ? 'selected' : ''} onClick={() => { setSelected(day); setScope('day'); }}><span>{['一','二','三','四','五','六','日'][index]}</span><strong>{Number(day.slice(8, 10))}</strong><small>{minutes ? `${Math.round(minutes / 6) / 10}h` : '—'}</small></button>;
+          })}
+        </div>
         <div className="segmented"><button className={scope === 'day' ? 'active' : ''} onClick={() => setScope('day')}>日</button><button className={scope === 'week' ? 'active' : ''} onClick={() => setScope('week')}>周</button></div>
       </div>
-      <div className="week-strip">
-        {weekDays.map((day) => {
-          const minutes = data.logs.filter((log) => log.periodKind === 'day' && log.periodStart === day).reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
-          return <button key={day} className={selected === day ? 'selected' : ''} onClick={() => { setSelected(day); setScope('day'); }}><span>{['一','二','三','四','五','六','日'][weekDays.indexOf(day)]}</span><strong>{Number(day.slice(8, 10))}</strong><small>{minutes ? `${Math.round(minutes / 6) / 10}h` : '—'}</small></button>;
-        })}
-      </div>
       <div className="filter-row" aria-label="记录筛选">
-        <label><span>事项</span><select aria-label="筛选关联事项" value={filterItem} onChange={(event) => setFilterItem(event.target.value)}><option value="">全部事项</option>{data.items.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-        <label><span>工作内容</span><select aria-label="筛选工作内容" value={filterContent} onChange={(event) => setFilterContent(event.target.value)}><option value="">全部内容</option>{data.contentOptions.map((content) => <option key={content.toLocaleLowerCase()} value={content}>{content}</option>)}</select></label>
+        <label><span>事项</span><input aria-label="搜索事项" list={itemSearchListId} value={filterItem} onChange={(event) => setFilterItem(event.target.value)} placeholder="搜索事项名称" /><datalist id={itemSearchListId}>{data.items.map((item) => <option key={item.id} value={item.title} />)}</datalist></label>
+        <label><span>工作内容</span><input aria-label="搜索工作内容" list={contentSearchListId} value={filterContent} onChange={(event) => setFilterContent(event.target.value)} placeholder="搜索工作内容" /><datalist id={contentSearchListId}>{data.contentOptions.map((content) => <option key={content.toLocaleLowerCase()} value={content} />)}</datalist></label>
         <label><span>分类</span><select aria-label="筛选分类" value={filterCategory} onChange={(event) => setFilterCategory(event.target.value)}><option value="">全部分类</option><option value="__none__">未分类</option>{data.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
         {(filterItem || filterContent || filterCategory) && <button className="clear-filters" onClick={() => { setFilterItem(''); setFilterContent(''); setFilterCategory(''); }}>清除筛选</button>}
       </div>
