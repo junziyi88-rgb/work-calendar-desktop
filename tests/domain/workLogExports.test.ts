@@ -13,8 +13,10 @@ const data: WorkLogData = {
 describe('work log exports', () => {
   it('exports readable Chinese CSV', () => {
     const csv = serializeWorkLogCsv(data);
-    expect(csv).toContain('周期,事项,工作内容,工时');
-    expect(csv).toContain('2026-09-08,课程上线,完成终审,1.5');
+    expect(csv).toContain('周期,事项,工作内容,记录精度');
+    expect(csv).toContain('2026-09-08,课程上线,完成终审,日');
+    expect(csv).not.toContain('工时');
+    expect(csv).not.toContain('1.5');
   });
 
   it('exports complete JSON', () => {

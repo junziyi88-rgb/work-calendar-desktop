@@ -1,7 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { filterWorkLogs } from '../../domain/categories';
-import { formatEffort } from '../../domain/effort';
 import { addDays, dateKey, formatWeekRange, periodRange, weekStart } from '../../domain/periods';
 import type { WorkItemInput, WorkLogData, WorkLogInput } from '../../shared/contracts';
 import { QuickEntry } from './QuickEntry';
@@ -32,19 +31,16 @@ export function RecordPage({ data, initialDate, onSaveItem, onSaveLog, onDeleteL
       : (() => { const { start, end } = periodRange('week', selected); return data.logs.filter((log) => log.periodStart >= start && log.periodStart < end); })();
     return filterWorkLogs(periodLogs, { itemQuery: filterItem || undefined, contentQuery: filterContent || undefined, categoryId: filterCategory || undefined }, data.items);
   }, [data.items, data.logs, filterCategory, filterContent, filterItem, scope, selected]);
-  const total = visibleLogs.reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
-
   const move = (amount: number) => setSelected(addDays(selected, amount * (scope === 'week' ? 7 : 1)));
   return <section className="page record-page">
-    <header className="compact-page-header"><h1>记录</h1><div className="today-total"><span>{scope === 'day' ? '当前日期' : '当前周'}工时</span><strong>{formatEffort(total)}</strong></div></header>
+    <header className="compact-page-header"><h1>记录</h1></header>
     <QuickEntry items={data.items} categories={data.categories} contentOptions={data.contentOptions} initialDate={selected} onSave={onSaveLog} />
     <div className="period-panel">
       <div className="period-toolbar compact-period-toolbar">
         <div className="period-nav"><button aria-label="上一周期" onClick={() => move(-1)}><ChevronLeft size={17} /></button><button className="today-link" onClick={() => setSelected(today)}>今天</button><button aria-label="下一周期" onClick={() => move(1)}><ChevronRight size={17} /></button><input aria-label="浏览日期" type="date" value={selected} onChange={(event) => setSelected(event.target.value)} /></div>
         <div className="week-strip">
           {weekDays.map((day, index) => {
-            const minutes = data.logs.filter((log) => log.periodKind === 'day' && log.periodStart === day).reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
-            return <button key={day} className={selected === day ? 'selected' : ''} onClick={() => { setSelected(day); setScope('day'); }}><span>{['一','二','三','四','五','六','日'][index]}</span><strong>{Number(day.slice(8, 10))}</strong><small>{minutes ? `${Math.round(minutes / 6) / 10}h` : '—'}</small></button>;
+            return <button key={day} className={selected === day ? 'selected' : ''} onClick={() => { setSelected(day); setScope('day'); }}><span>{['一','二','三','四','五','六','日'][index]}</span><strong>{Number(day.slice(8, 10))}</strong></button>;
           })}
         </div>
         <div className="segmented"><button className={scope === 'day' ? 'active' : ''} onClick={() => setScope('day')}>日</button><button className={scope === 'week' ? 'active' : ''} onClick={() => setScope('week')}>周</button></div>

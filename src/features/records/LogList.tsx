@@ -1,7 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { Check, Pencil, RotateCcw, Trash2, X } from 'lucide-react';
 import { matchCategory } from '../../domain/categories';
-import { formatEffort, parseEffort } from '../../domain/effort';
 import { dateKey, formatWeekRange, weekStart } from '../../domain/periods';
 import type { Category, WorkItem, WorkItemInput, WorkLog, WorkLogInput, WorkLogPeriodKind } from '../../shared/contracts';
 import { ResizableField } from '../../components/ResizableField';
@@ -21,7 +20,6 @@ interface EditDraft {
   id: string;
   itemText: string;
   content: string;
-  effort: string;
   periodKind: WorkLogPeriodKind;
   date: string;
   time: string;
@@ -52,7 +50,7 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
     const occurred = new Date(log.occurredAt);
     setDraft({
       id: log.id, itemText: log.workItemId ? itemMap.get(log.workItemId) ?? '' : '', content: log.content,
-      effort: log.effortMinutes == null ? '' : String(log.effortMinutes / 60), periodKind: log.periodKind,
+      periodKind: log.periodKind,
       date: log.periodKind === 'day' ? log.periodStart : dateKey(occurred), time: localTime(occurred),
       categoryName: log.categoryId ? categoryMap.get(log.categoryId)?.name ?? '' : '',
       categoryMode: log.categoryMode
@@ -74,7 +72,7 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
       } else if (!exactItem && !log.workItemId && itemTitle) newItemTitle = itemTitle;
       await onSave({
         id: log.id, workItemId, content: draft.content.trim(),
-        effortMinutes: parseEffort(draft.effort), periodKind: draft.periodKind,
+        periodKind: draft.periodKind,
         periodStart: draft.periodKind === 'week' ? weekStart(draft.date) : draft.date,
         occurredAt: toIso(draft.date, draft.time),
         categoryId: draft.categoryMode === 'auto' ? null : undefined,
@@ -104,7 +102,6 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
             <div className="edit-grid">
               <label><span>关联事项</span><ResizableField id="edit-log-item" label="编辑关联事项"><input aria-label="编辑关联事项" list={`${contentListId}-items`} value={draft.itemText} onChange={(event) => setDraft({ ...draft, itemText: event.target.value })} placeholder="选择、新建或重命名事项" /></ResizableField><datalist id={`${contentListId}-items`}>{availableItems.filter((item) => item.status === 'active' || item.id === log.workItemId).map((item) => <option key={item.id} value={item.title} />)}</datalist></label>
               <label className="edit-content"><span>工作内容</span><ResizableField id="edit-log-content" label="编辑工作内容"><input aria-label="编辑工作内容" list={contentListId} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} /></ResizableField></label>
-              <label><span>工时</span><ResizableField id="edit-log-effort" label="编辑工时"><input aria-label="编辑工时" value={draft.effort} onChange={(event) => setDraft({ ...draft, effort: event.target.value })} placeholder="如 1.5h" /></ResizableField></label>
               <label><span>记录到</span><select aria-label="编辑记录到" value={draft.periodKind} onChange={(event) => setDraft({ ...draft, periodKind: event.target.value as WorkLogPeriodKind })}><option value="day">某一天</option><option value="week">某一周</option></select></label>
               <label><span>日期</span><input aria-label="编辑日期" type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} /></label>
               <label><span>时间</span><input aria-label="编辑时间" type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} /></label>
@@ -117,7 +114,6 @@ export function LogList({ logs, items, categories = [], contentOptions = [], onS
               <div className="log-meta"><span>{log.workItemId ? itemMap.get(log.workItemId) ?? '已删除事项' : '其他工作'}</span><time>{log.periodKind === 'week' ? formatWeekRange(log.periodStart) : log.periodStart.replaceAll('-', '.')} · {localTime(new Date(log.occurredAt))}</time>{category && <em style={{ backgroundColor: category.color }}>{category.name}</em>}</div>
               <p>{log.content}</p>
             </div>
-            <div className="log-effort">{log.effortMinutes == null ? <span className="missing-effort">待补工时</span> : <strong>{formatEffort(log.effortMinutes)}</strong>}</div>
             <div className="row-actions"><button aria-label="编辑记录" onClick={() => startEdit(log)}><Pencil size={15} /></button><button aria-label="删除记录" onClick={() => void remove(log.id)}><Trash2 size={15} /></button></div>
           </>}
         </article>;

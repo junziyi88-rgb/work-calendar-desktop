@@ -1,5 +1,4 @@
 import type { SummaryGroup, SummaryKind, SummaryResult, WorkLogData } from '../shared/contracts';
-import { formatEffort } from './effort';
 import { formatWeekRange, periodRange } from './periods';
 
 export function buildSummary(data: WorkLogData, kind: SummaryKind, anchor: string): SummaryResult {
@@ -19,28 +18,26 @@ export function buildSummary(data: WorkLogData, kind: SummaryKind, anchor: strin
       logs: []
     };
     existing.logs.push(log);
-    existing.minutes += log.effortMinutes ?? 0;
     grouped.set(key, existing);
   }
 
-  const groups = [...grouped.values()].sort((a, b) => b.minutes - a.minutes || a.itemTitle.localeCompare(b.itemTitle, 'zh-CN'));
-  const totalMinutes = groups.reduce((sum, group) => sum + group.minutes, 0);
+  const groups = [...grouped.values()].sort((a, b) => a.itemTitle.localeCompare(b.itemTitle, 'zh-CN'));
+  const totalMinutes = 0;
   const completedItems = data.items.filter((item) => item.status === 'completed' && item.completedAt && item.completedAt.slice(0, 10) >= start && item.completedAt.slice(0, 10) < end);
   const progressedIds = new Set(logs.flatMap((log) => log.workItemId ? [log.workItemId] : []));
   const progressedItems = data.items.filter((item) => item.status === 'active' && progressedIds.has(item.id));
-  const missingEffort = logs.filter((log) => log.effortMinutes == null);
+  const missingEffort: typeof logs = [];
 
   const heading = kind === 'week'
     ? `本周工作总结（${formatWeekRange(anchor)}）`
     : `${Number(start.slice(0, 4))}年${Number(start.slice(5, 7))}月工作总结`;
-  const lines = [heading, `总工时：${formatEffort(totalMinutes)}`, ''];
+  const lines = [heading, ''];
   for (const group of groups) {
     lines.push(`【${group.itemTitle}】`);
-    for (const log of group.logs) lines.push(`- ${log.content}${log.effortMinutes == null ? '' : `（${formatEffort(log.effortMinutes)}）`}`);
-    lines.push(`累计投入：${formatEffort(group.minutes)}`, '');
+    for (const log of group.logs) lines.push(`- ${log.content}`);
+    lines.push('');
   }
   if (completedItems.length) lines.push(`本期完成：${completedItems.map((item) => item.title).join('、')}`);
-  if (missingEffort.length) lines.push(`待补工时：${missingEffort.length} 条`);
 
   return { kind, start, end, totalMinutes, groups, missingEffort, completedItems, progressedItems, copyText: lines.join('\n').trim() };
 }

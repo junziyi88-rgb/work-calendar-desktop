@@ -48,7 +48,7 @@ export function registerIpc(deps: IpcDependencies) {
   handle('export:data', async (format: 'csv' | 'json') => {
     const extension = format;
     const result = await dialog.showSaveDialog(deps.getMainWindow()!, {
-      title: format === 'csv' ? '导出工时记录' : '备份工作记录',
+      title: format === 'csv' ? '导出工作记录' : '备份工作记录',
       defaultPath: path.join(app.getPath('documents'), `工作记录-${new Date().toISOString().slice(0, 10)}.${extension}`),
       filters: [{ name: extension.toUpperCase(), extensions: [extension] }]
     });

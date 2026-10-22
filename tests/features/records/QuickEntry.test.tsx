@@ -12,10 +12,11 @@ describe('quick work entry', () => {
     render(<QuickEntry items={[]} initialDate="2026-09-08" onSave={onSave} />);
 
     await user.type(screen.getByLabelText('工作内容'), '完成第三轮脚本修改');
-    await user.type(screen.getByLabelText('工时'), '1.5h');
+    expect(screen.queryByLabelText('工时')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '记录' }));
 
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ content: '完成第三轮脚本修改', effortMinutes: 90, periodKind: 'day', periodStart: '2026-09-08', workItemId: null, categoryMode: 'auto' }), undefined);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ content: '完成第三轮脚本修改', periodKind: 'day', periodStart: '2026-09-08', workItemId: null, categoryMode: 'auto' }), undefined);
+    expect(onSave.mock.calls[0][0]).not.toHaveProperty('effortMinutes');
   });
 
   it('can create an item while recording week-level progress', async () => {

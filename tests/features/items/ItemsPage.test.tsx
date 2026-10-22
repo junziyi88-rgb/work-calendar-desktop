@@ -27,7 +27,8 @@ describe('long-running work items', () => {
     render(<ItemsPage data={data} onSaveItem={vi.fn()} onComplete={vi.fn()} onReopen={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: /桌面工作记录工具/ }));
     expect(screen.getByText('重新梳理真实需求')).toBeInTheDocument();
-    expect(screen.getByText('累计 18.5 小时')).toBeInTheDocument();
+    expect(screen.queryByText(/累计.*小时/)).not.toBeInTheDocument();
+    expect(screen.queryByText('18.5 小时')).not.toBeInTheDocument();
   });
 
   it('edits the item name and chooses a manual default category', async () => {

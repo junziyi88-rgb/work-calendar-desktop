@@ -25,8 +25,10 @@ describe('work summaries', () => {
     expect(screen.getByRole('heading', { name: '2026年第37周 · 9月7日—9月13日' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '回到本周' })).toBeInTheDocument();
     expect(screen.getByText('持续推进')).toBeInTheDocument();
+    expect(screen.queryByText(/总工时|待补工时|小时/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '复制周总结' }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('完成第三轮脚本修改'));
+    expect(writeText.mock.calls[0][0]).not.toMatch(/工时|小时|累计投入/);
   });
 
   it('selects an unambiguous week from the summary calendar', async () => {

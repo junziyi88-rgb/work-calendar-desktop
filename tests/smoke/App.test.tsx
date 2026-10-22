@@ -17,6 +17,8 @@ describe('application shell', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole('button', { name: '更多操作' }));
+    expect(screen.getByRole('button', { name: '导出记录 CSV' })).toBeInTheDocument();
+    expect(screen.queryByText('导出工时 CSV')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '管理分类' }));
     expect(screen.getByRole('dialog', { name: '分类管理' })).toBeInTheDocument();
   });

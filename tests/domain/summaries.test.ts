@@ -30,19 +30,20 @@ describe('period helpers', () => {
 describe('summary generation', () => {
   it('groups parallel work without merging progress entries', () => {
     const result = buildSummary(data, 'week', '2026-09-10');
-    expect(result.totalMinutes).toBe(210);
-    expect(result.groups[0]).toMatchObject({ itemTitle: '课程上线', minutes: 150 });
+    expect(result.totalMinutes).toBe(0);
+    expect(result.groups[0]).toMatchObject({ itemTitle: '课程上线', minutes: 0 });
     expect(result.groups[0].logs).toHaveLength(2);
-    expect(result.missingEffort).toHaveLength(1);
+    expect(result.missingEffort).toHaveLength(0);
     expect(result.completedItems.map((item) => item.title)).toContain('桌面工具');
     expect(result.copyText).toContain('本周工作总结');
     expect(result.copyText).toContain('完成第三轮脚本修改');
+    expect(result.copyText).not.toMatch(/工时|小时|累计投入/);
   });
 
   it('builds monthly OKR material from the same records', () => {
     const result = buildSummary(data, 'month', '2026-09-10');
-    expect(result.totalMinutes).toBe(210);
+    expect(result.totalMinutes).toBe(0);
     expect(result.copyText).toContain('2026年9月工作总结');
-    expect(result.copyText).toContain('累计投入：2.5 小时');
+    expect(result.copyText).not.toMatch(/工时|小时|累计投入/);
   });
 });

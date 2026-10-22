@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { RecordPage } from '../../../src/features/records/RecordPage';
 import type { WorkLogData } from '../../../src/shared/contracts';
+import '../../../src/styles/app.css';
 
 const data: WorkLogData = {
   items: [
@@ -42,5 +43,13 @@ describe('record filters', () => {
     const { container } = render(<RecordPage data={data} initialDate="2026-09-09" onSaveItem={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
     expect(container.querySelector('.period-toolbar > .week-strip')).toBeInTheDocument();
     expect(container.querySelector('.log-list.three-column-list')).toBeInTheDocument();
+    expect(getComputedStyle(container.querySelector('.filter-row')!).marginTop).toBe('18px');
+  });
+
+  it('does not show effort totals or per-day effort', () => {
+    const { container } = render(<RecordPage data={data} initialDate="2026-09-09" onSaveItem={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
+    expect(screen.queryByText(/工时/)).not.toBeInTheDocument();
+    expect(container.querySelector('.today-total')).not.toBeInTheDocument();
+    expect(container.querySelector('.week-strip small')).not.toBeInTheDocument();
   });
 });

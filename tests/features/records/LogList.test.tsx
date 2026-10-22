@@ -31,8 +31,7 @@ describe('work log editing', () => {
     await user.type(screen.getByLabelText('编辑关联事项'), '交付归档事项');
     await user.clear(screen.getByLabelText('编辑工作内容'));
     await user.type(screen.getByLabelText('编辑工作内容'), '整理本月进展');
-    await user.clear(screen.getByLabelText('编辑工时'));
-    await user.type(screen.getByLabelText('编辑工时'), '1.5h');
+    expect(screen.queryByLabelText('编辑工时')).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('编辑记录到'), 'week');
     await user.clear(screen.getByLabelText('编辑日期'));
     await user.type(screen.getByLabelText('编辑日期'), '2026-09-10');
@@ -45,10 +44,11 @@ describe('work log editing', () => {
 
     expect(onSaveItem).toHaveBeenCalledWith(expect.objectContaining({ id: 'item-old', title: '交付归档事项' }));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'log-1', workItemId: 'item-old', content: '整理本月进展', effortMinutes: 90,
+      id: 'log-1', workItemId: 'item-old', content: '整理本月进展',
       periodKind: 'week', periodStart: '2026-09-07',
       occurredAt: new Date(2026, 8, 10, 9, 40).toISOString(), categoryName: '项目协作', categoryMode: 'manual'
     }), undefined);
+    expect(onSave.mock.calls[0][0]).not.toHaveProperty('effortMinutes');
   }, 10_000);
 
   it('relinks to an exact existing item without renaming the original', async () => {
@@ -91,5 +91,11 @@ describe('work log editing', () => {
     await user.click(screen.getByRole('button', { name: '保存修改' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ categoryName: null, categoryMode: 'manual' }), undefined);
+  });
+
+  it('does not display saved effort values in record cards', () => {
+    render(<LogList logs={[log]} items={items} categories={categories} onSave={vi.fn()} onSaveItem={vi.fn()} onDelete={vi.fn()} onRestore={vi.fn()} />);
+    expect(screen.queryByText('1 小时')).not.toBeInTheDocument();
+    expect(screen.queryByText('待补工时')).not.toBeInTheDocument();
   });
 });

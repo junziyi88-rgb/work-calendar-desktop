@@ -216,9 +216,10 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
         ? input.categoryName !== undefined ? resolveTypedCategory(input.categoryName, '') : input.categoryId ?? null
         : input.workItemId ? workItems.get(input.workItemId)?.categoryId ?? null : null;
       const occurredAt = input.occurredAt ?? existing?.occurred_at ?? timestamp;
-      if (existing) db.run('UPDATE work_logs SET work_item_id=?,content=?,effort_minutes=?,period_kind=?,period_start=?,occurred_at=?,category_id=?,category_mode=?,updated_at=? WHERE id=?', [input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, id]);
+      const effortMinutes = input.effortMinutes === undefined ? existing?.effort_minutes ?? null : input.effortMinutes;
+      if (existing) db.run('UPDATE work_logs SET work_item_id=?,content=?,effort_minutes=?,period_kind=?,period_start=?,occurred_at=?,category_id=?,category_mode=?,updated_at=? WHERE id=?', [input.workItemId ?? null, content, effortMinutes, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, id]);
       else db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?)`, [id, input.workItemId ?? null, content, input.effortMinutes ?? null, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, timestamp]);
+        VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?)`, [id, input.workItemId ?? null, content, effortMinutes, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, timestamp]);
       if (input.workItemId) db.run('UPDATE work_items SET summary=?, updated_at=? WHERE id=?', [content, timestamp, input.workItemId]);
       persist(); return workLogs.get(id)!;
     },

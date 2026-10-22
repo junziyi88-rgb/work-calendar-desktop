@@ -1,6 +1,5 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { parseEffort } from '../../domain/effort';
 import { dateKey, weekStart } from '../../domain/periods';
 import { matchCategory } from '../../domain/categories';
 import type { Category, WorkItem, WorkLogInput, WorkLogPeriodKind } from '../../shared/contracts';
@@ -31,7 +30,6 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
   const initialItem = items.find((item) => item.id === initialItemId);
   const [itemText, setItemText] = useState(initialItem?.title ?? '');
   const [content, setContent] = useState('');
-  const [effort, setEffort] = useState('');
   const [periodKind, setPeriodKind] = useState<WorkLogPeriodKind>('day');
   const [periodDate, setPeriodDate] = useState(initialDate);
   const [recordTime, setRecordTime] = useState(() => localTime(new Date()));
@@ -53,22 +51,21 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
       const matchesExisting = activeItems.some((item) => item.title === itemText.trim());
-      if (!content.trim() && !effort.trim() && !categoryText.trim() && (!itemText.trim() || matchesExisting)) return;
+      if (!content.trim() && !categoryText.trim() && (!itemText.trim() || matchesExisting)) return;
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', protect);
     return () => window.removeEventListener('beforeunload', protect);
-  }, [activeItems, categoryText, content, effort, itemText]);
+  }, [activeItems, categoryText, content, itemText]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!content.trim()) { setError('写一句这次完成了什么'); return; }
     setSaving(true); setError('');
     try {
-      const effortMinutes = parseEffort(effort);
       await onSave({
-        content: content.trim(), effortMinutes, periodKind,
+        content: content.trim(), periodKind,
         periodStart: periodKind === 'week' ? weekStart(periodDate) : periodDate,
         occurredAt: occurredAt(periodDate, recordTime),
         workItemId: matchedItem?.id ?? null,
@@ -77,7 +74,7 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
         categoryMode: categoryIsManual ? 'manual' : 'auto'
       }, itemText.trim() && !matchedItem ? itemText.trim() : undefined);
       const current = new Date();
-      setContent(''); setEffort(''); setPeriodDate(dateKey(current)); setRecordTime(localTime(current)); setCategoryText(''); setCategoryIsManual(false);
+      setContent(''); setPeriodDate(dateKey(current)); setRecordTime(localTime(current)); setCategoryText(''); setCategoryIsManual(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '保存失败，请重试');
     } finally { setSaving(false); }
@@ -98,7 +95,6 @@ export function QuickEntry({ items, categories = [], contentOptions = [], initia
     </div>
     {!compact && activeItems.length > 0 && <div className="recent-items"><span>最近事项</span>{activeItems.slice(0, 5).map((item) => <button type="button" key={item.id} onClick={() => setItemText(item.title)}>{item.title}</button>)}</div>}
     <div className="entry-meta">
-      <label><span>工时</span><ResizableField id={`${fieldScope}-effort`} label="工时"><input aria-label="工时" value={effort} onChange={(event) => setEffort(event.target.value)} placeholder="如 1.5h" /></ResizableField></label>
       <label><span>记录到</span><select aria-label="记录到" value={periodKind} onChange={(event) => setPeriodKind(event.target.value as WorkLogPeriodKind)}><option value="day">某一天</option><option value="week">某一周</option></select></label>
       <label><span>{periodKind === 'day' ? '日期' : '周内日期'}</span><input aria-label="记录日期" type="date" value={periodDate} onChange={(event) => setPeriodDate(event.target.value)} /></label>
       <label><span>时间</span><input aria-label="记录时间" type="time" value={recordTime} onChange={(event) => setRecordTime(event.target.value)} /></label>

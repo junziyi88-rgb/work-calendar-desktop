@@ -2,7 +2,6 @@ import { useId, useMemo, useState, type FormEvent } from 'react';
 import { ArrowLeft, Check, CheckCircle2, Pencil, Plus, RotateCcw, Search, X } from 'lucide-react';
 import { ResizableField } from '../../components/ResizableField';
 import { matchCategory } from '../../domain/categories';
-import { formatEffort } from '../../domain/effort';
 import { dateKey, formatWeekRange } from '../../domain/periods';
 import type { WorkItemInput, WorkLogData, WorkLogInput } from '../../shared/contracts';
 import { QuickEntry } from '../records/QuickEntry';
@@ -39,7 +38,6 @@ export function ItemsPage({ data, onSaveItem, onComplete, onReopen, onSaveLog }:
   const selected = data.items.find((item) => item.id === selectedId) ?? null;
   const categoryMap = new Map(data.categories.map((category) => [category.id, category]));
   const logs = useMemo(() => data.logs.filter((log) => log.workItemId === selectedId && !log.deletedAt).sort((a, b) => b.periodStart.localeCompare(a.periodStart) || b.createdAt.localeCompare(a.createdAt)), [data.logs, selectedId]);
-  const total = logs.reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -91,7 +89,6 @@ export function ItemsPage({ data, onSaveItem, onComplete, onReopen, onSaveLog }:
           <p>{selected.summary ? `当前进展：${selected.summary}` : '还没有进展摘要'}</p>
         </div>
         <div className="detail-actions">
-          <div><strong>累计 {formatEffort(total)}</strong></div>
           <button className="quiet-button" onClick={startEdit}><Pencil size={16} />编辑事项</button>
           {selected.status === 'active'
             ? <button className="quiet-button" onClick={() => void onComplete(selected.id)}><CheckCircle2 size={16} />标记完成</button>
@@ -108,7 +105,7 @@ export function ItemsPage({ data, onSaveItem, onComplete, onReopen, onSaveLog }:
       </form>}
       {selected.status === 'active' && <QuickEntry compact items={data.items} categories={data.categories} contentOptions={data.contentOptions} initialDate={dateKey(new Date())} initialItemId={selected.id} onSave={onSaveLog} />}
       <div className="timeline-section"><div className="section-heading"><div><span>PROGRESS</span><h2>进展时间线</h2></div><span>{logs.length} 条记录</span></div>
-        {logs.length ? <div className="timeline">{logs.map((log) => <article key={log.id}><div className="timeline-date"><strong>{log.periodKind === 'week' ? '周' : log.periodStart.slice(8, 10)}</strong><span>{log.periodKind === 'week' ? formatWeekRange(log.periodStart) : `${Number(log.periodStart.slice(5, 7))}月`}</span></div><div className="timeline-copy"><p>{log.content}</p><span>{log.effortMinutes == null ? '待补工时' : formatEffort(log.effortMinutes)}</span></div></article>)}</div> : <div className="empty-state"><strong>还没有进展</strong><p>在上面追加第一条记录。</p></div>}
+        {logs.length ? <div className="timeline">{logs.map((log) => <article key={log.id}><div className="timeline-date"><strong>{log.periodKind === 'week' ? '周' : log.periodStart.slice(8, 10)}</strong><span>{log.periodKind === 'week' ? formatWeekRange(log.periodStart) : `${Number(log.periodStart.slice(5, 7))}月`}</span></div><div className="timeline-copy"><p>{log.content}</p></div></article>)}</div> : <div className="empty-state"><strong>还没有进展</strong><p>在上面追加第一条记录。</p></div>}
       </div>
     </section>;
   }
@@ -119,11 +116,10 @@ export function ItemsPage({ data, onSaveItem, onComplete, onReopen, onSaveLog }:
     <div className="items-toolbar"><label className="item-search"><Search size={15} /><input aria-label="搜索事项或工作内容" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索事项或工作内容" /></label><div className="segmented"><button className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}>进行中</button><button className={filter === 'completed' ? 'active' : ''} onClick={() => setFilter('completed')}>已完成</button></div></div>
     <div className="item-list three-column-list">{items.map((item) => {
       const itemLogs = data.logs.filter((log) => log.workItemId === item.id && !log.deletedAt);
-      const minutes = itemLogs.reduce((sum, log) => sum + (log.effortMinutes ?? 0), 0);
       const first = [...itemLogs].sort((a, b) => a.periodStart.localeCompare(b.periodStart))[0]?.periodStart ?? item.createdAt.slice(0, 10);
       const latest = itemLogs[0]?.periodStart ?? item.updatedAt.slice(0, 10);
       const category = item.categoryId ? categoryMap.get(item.categoryId) : null;
-      return <button className="item-row" key={item.id} onClick={() => setSelectedId(item.id)} aria-label={`${item.title}，查看进展`}><div className="item-state" /><div><div className="item-title-line"><h2>{item.title}</h2>{category && <em style={{ backgroundColor: category.color }}>{category.name}</em>}</div><p>最近：{item.summary || '等待第一条进展'}</p></div><div className="item-range"><span>{first} — {latest}</span><strong>{formatEffort(minutes)}</strong></div></button>;
+      return <button className="item-row" key={item.id} onClick={() => setSelectedId(item.id)} aria-label={`${item.title}，查看进展`}><div className="item-state" /><div><div className="item-title-line"><h2>{item.title}</h2>{category && <em style={{ backgroundColor: category.color }}>{category.name}</em>}</div><p>最近：{item.summary || '等待第一条进展'}</p></div><div className="item-range"><span>{first} — {latest}</span></div></button>;
     })}{!items.length && <div className="empty-state"><strong>{filter === 'active' ? '还没有进行中的事项' : '还没有完成的事项'}</strong><p>事项只用来串起长期进展，不需要提前规划。</p></div>}</div>
   </section>;
 }

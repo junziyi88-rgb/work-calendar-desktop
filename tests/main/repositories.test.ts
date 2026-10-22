@@ -59,6 +59,13 @@ describe('work log repositories', () => {
     expect(repositories.workItems.get(second.id)?.summary).toBe('整理本月进展');
   });
 
+  it('preserves legacy effort data when editing without the removed effort field', () => {
+    const saved = repositories.workLogs.save({ content: '完成脚本初稿', effortMinutes: 45, periodKind: 'day', periodStart: '2026-09-08' });
+    const edited = repositories.workLogs.save({ id: saved.id, content: '完成脚本终稿', periodKind: 'day', periodStart: '2026-09-08' });
+
+    expect(edited.effortMinutes).toBe(45);
+  });
+
   it('classifies items by title and makes automatic logs inherit the item category', () => {
     const writing = repositories.categories.save({ name: '内容制作', color: '#EDF3EC', keywords: ['脚本'] });
     const item = repositories.workItems.save({ title: '课程脚本开发' });

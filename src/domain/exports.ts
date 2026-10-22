@@ -51,12 +51,11 @@ export function serializeJson(data: CalendarData, extra: Record<string, unknown>
 
 export function serializeWorkLogCsv(data: WorkLogData) {
   const itemMap = new Map(data.items.map((item) => [item.id, item.title]));
-  const header = ['周期', '事项', '工作内容', '工时', '记录精度'];
+  const header = ['周期', '事项', '工作内容', '记录精度'];
   const lines = data.logs.filter((log) => !log.deletedAt).map((log) => [
     log.periodStart,
     log.workItemId ? itemMap.get(log.workItemId) ?? '已删除事项' : '其他工作',
     log.content,
-    log.effortMinutes == null ? '' : Math.round((log.effortMinutes / 60) * 100) / 100,
     log.periodKind === 'week' ? '周' : '日'
   ].map(csvCell).join(','));
   return `\ufeff${header.join(',')}\r\n${lines.join('\r\n')}`;

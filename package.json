@@ -1,6 +1,6 @@
 {
   "name": "work-calendar-desktop",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "author": "Work Log",
   "description": "A local-first Windows work log for manual progress, weekly summaries, and monthly hours.",
