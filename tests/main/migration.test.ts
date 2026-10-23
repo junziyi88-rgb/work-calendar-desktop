@@ -69,4 +69,30 @@ describe('legacy work calendar migration', () => {
       fs.rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it('replaces legacy work-content keywords with item-title keywords and reclassifies automatic data', async () => {
+    database = await createMemoryDatabase();
+    database.db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('legacy_migrated_v2','1')");
+    database.db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('item_categories_migrated_v4','1')");
+    database.db.run(`INSERT INTO categories (id,name,color,keywords_json,deleted_at,created_at,updated_at) VALUES
+      ('preview','预习课','#E1F3FE','["完成视频初审"]',NULL,'2026-09-01T00:00:00.000Z','2026-09-01T00:00:00.000Z'),
+      ('words','字词预习课','#EDF3EC','["完成策略报告"]',NULL,'2026-09-02T00:00:00.000Z','2026-09-02T00:00:00.000Z'),
+      ('classics','小古文','#FBF3DB','["撰写逐字稿"]',NULL,'2026-09-03T00:00:00.000Z','2026-09-03T00:00:00.000Z')`);
+    database.db.run(`INSERT INTO work_items (id,title,status,summary,category_id,category_mode,completed_at,deleted_at,created_at,updated_at) VALUES
+      ('named','字词预习课《古诗三首》','active','',NULL,'auto',NULL,NULL,'2026-09-04T00:00:00.000Z','2026-09-04T00:00:00.000Z'),
+      ('learned','《守株待兔》','active','',NULL,'auto',NULL,NULL,'2026-09-05T00:00:00.000Z','2026-09-05T00:00:00.000Z')`);
+    database.db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at) VALUES
+      ('manual','learned','完成逐字稿',NULL,'day','2026-09-08','2026-09-08T01:00:00.000Z','classics','manual',NULL,'2026-09-08T01:00:00.000Z','2026-09-08T01:00:00.000Z'),
+      ('automatic','learned','完成终审',NULL,'day','2026-09-09','2026-09-09T01:00:00.000Z',NULL,'auto',NULL,'2026-09-09T01:00:00.000Z','2026-09-09T01:00:00.000Z')`);
+
+    const repositories = createRepositories(database, () => '2026-09-10T02:00:00.000Z');
+
+    expect(repositories.categories.get('preview')?.keywords).toEqual(['预习课']);
+    expect(repositories.categories.get('words')?.keywords).toEqual(['字词预习课', '字词预习课《古诗三首》']);
+    expect(repositories.categories.get('classics')?.keywords).toEqual(['小古文', '《守株待兔》']);
+    expect(repositories.workItems.get('named')).toMatchObject({ categoryId: 'words', categoryMode: 'auto' });
+    expect(repositories.workItems.get('learned')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
+    expect(repositories.workLogs.get('automatic')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
+    expect(repositories.workLogs.get('manual')).toMatchObject({ categoryId: 'classics', categoryMode: 'manual' });
+  });
 });

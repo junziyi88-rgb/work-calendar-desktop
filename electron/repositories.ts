@@ -201,6 +201,47 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
     persist();
   }
 
+  const itemTitleKeywordsMigrated = row<{ value: string }>(db, "SELECT value FROM meta WHERE key='item_title_keywords_migrated_v5'");
+  if (!itemTitleKeywordsMigrated) {
+    db.run('BEGIN');
+    try {
+      const available = categoryRows().map(mapCategory);
+      const availableIds = new Set(available.map((category) => category.id));
+      const categoryNameRules = available.map((category) => ({ ...category, keywords: [category.name] }));
+      const titlesByCategory = new Map(available.map((category) => [category.id, [] as string[]]));
+      const manualLogCounts = rows<{ work_item_id: string; category_id: string; count: number }>(db, `
+        SELECT work_item_id, category_id, COUNT(*) AS count
+        FROM work_logs
+        WHERE deleted_at IS NULL AND work_item_id IS NOT NULL AND category_id IS NOT NULL AND category_mode='manual'
+        GROUP BY work_item_id, category_id
+      `);
+
+      for (const item of rows<WorkItemRow>(db, 'SELECT * FROM work_items WHERE deleted_at IS NULL ORDER BY created_at, id')) {
+        let categoryId = item.category_mode === 'manual' && item.category_id && availableIds.has(item.category_id)
+          ? item.category_id
+          : matchCategory(categoryNameRules, item.title);
+        if (!categoryId) {
+          categoryId = manualLogCounts
+            .filter((entry) => entry.work_item_id === item.id && availableIds.has(entry.category_id))
+            .sort((a, b) => b.count - a.count
+              || available.findIndex((category) => category.id === a.category_id)
+                - available.findIndex((category) => category.id === b.category_id))[0]?.category_id ?? null;
+        }
+        if (categoryId) titlesByCategory.get(categoryId)?.push(item.title);
+      }
+
+      const timestamp = now();
+      for (const category of available) {
+        const keywords = normalizedKeywords([category.name, ...(titlesByCategory.get(category.id) ?? [])]);
+        db.run('UPDATE categories SET keywords_json=?,updated_at=? WHERE id=?', [JSON.stringify(keywords), timestamp, category.id]);
+      }
+      reclassifyAutoItemsAndLogs();
+      db.run("INSERT INTO meta(key,value) VALUES ('item_title_keywords_migrated_v5','1')");
+      db.run('COMMIT');
+    } catch (error) { db.run('ROLLBACK'); throw error; }
+    persist();
+  }
+
   const workLogs = {
     list: (includeDeleted = false) => rows<WorkLogRow>(db, `SELECT * FROM work_logs ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY period_start DESC, created_at DESC`).map(mapWorkLog),
     get: (id: string) => { const item = row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [id]); return item ? mapWorkLog(item) : null; },
