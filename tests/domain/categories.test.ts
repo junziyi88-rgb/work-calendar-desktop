@@ -28,6 +28,17 @@ describe('work log categories', () => {
     expect(matchCategory(tied, '复核后校对')).toBe('planning');
   });
 
+  it('matches any continuous typed text inside a keyword while ignoring punctuation and spaces', () => {
+    const classics = [{ ...categories[0], id: 'classics', keywords: ['《守株待兔》'] }];
+
+    expect(matchCategory(classics, '株')).toBe('classics');
+    expect(matchCategory(classics, '守株')).toBe('classics');
+    expect(matchCategory(classics, ' 守 - 株 ')).toBe('classics');
+    expect(matchCategory(classics, '株待')).toBe('classics');
+    expect(matchCategory(classics, '株守')).toBeNull();
+    expect(matchCategory(classics, '《》')).toBeNull();
+  });
+
   it('derives unique historical content by most recent active use', () => {
     const logs = [
       log({ id: 'old', content: ' 完成脚本 ', updatedAt: '2026-09-01T00:00:00.000Z' }),

@@ -9,16 +9,27 @@ export interface WorkLogFilters {
 }
 
 const normalize = (value: string) => value.trim().toLocaleLowerCase();
+const normalizeCategoryText = (value: string) => normalize(value).replace(/[^\p{L}\p{N}]+/gu, '');
 
 export function matchCategory(categories: Category[], itemTitle: string) {
-  const haystack = normalize(itemTitle);
+  const haystack = normalizeCategoryText(itemTitle);
+  if (!haystack) return null;
   const matches = categories
     .filter((category) => !category.deletedAt)
     .flatMap((category, categoryIndex) => category.keywords
-      .map(normalize)
-      .filter((keyword) => keyword && haystack.includes(keyword))
-      .map((keyword) => ({ categoryId: category.id, length: keyword.length, createdAt: category.createdAt, categoryIndex })))
-    .sort((a, b) => b.length - a.length || a.createdAt.localeCompare(b.createdAt) || a.categoryIndex - b.categoryIndex);
+      .map(normalizeCategoryText)
+      .filter((keyword) => keyword && (haystack.includes(keyword) || keyword.includes(haystack)))
+      .map((keyword) => ({
+        categoryId: category.id,
+        length: keyword.length,
+        completeKeyword: haystack.includes(keyword),
+        createdAt: category.createdAt,
+        categoryIndex
+      })))
+    .sort((a, b) => Number(b.completeKeyword) - Number(a.completeKeyword)
+      || (a.completeKeyword ? b.length - a.length : a.length - b.length)
+      || a.createdAt.localeCompare(b.createdAt)
+      || a.categoryIndex - b.categoryIndex);
   return matches[0]?.categoryId ?? null;
 }
 

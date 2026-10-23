@@ -242,6 +242,17 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
     persist();
   }
 
+  const partialItemKeywordsMigrated = row<{ value: string }>(db, "SELECT value FROM meta WHERE key='partial_item_keywords_migrated_v6'");
+  if (!partialItemKeywordsMigrated) {
+    db.run('BEGIN');
+    try {
+      reclassifyAutoItemsAndLogs();
+      db.run("INSERT INTO meta(key,value) VALUES ('partial_item_keywords_migrated_v6','1')");
+      db.run('COMMIT');
+    } catch (error) { db.run('ROLLBACK'); throw error; }
+    persist();
+  }
+
   const workLogs = {
     list: (includeDeleted = false) => rows<WorkLogRow>(db, `SELECT * FROM work_logs ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY period_start DESC, created_at DESC`).map(mapWorkLog),
     get: (id: string) => { const item = row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [id]); return item ? mapWorkLog(item) : null; },

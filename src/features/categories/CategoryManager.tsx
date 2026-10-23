@@ -45,7 +45,7 @@ export function CategoryManager({ categories, onSave, onDelete, onClose }: Props
 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="category-dialog" role="dialog" aria-modal="true" aria-label="分类管理">
-      <header><div><span className="kicker">关键词自动匹配</span><h2>分类管理</h2><p>系统只根据事项名称匹配关键词；工作内容不会参与分类。</p></div><button className="dialog-close" aria-label="关闭分类管理" onClick={onClose}>关闭</button></header>
+      <header><div><span className="kicker">关键词自动匹配</span><h2>分类管理</h2><p>只匹配事项名称；连续输入任意字即可命中，标点和空格会被忽略。</p></div><button className="dialog-close" aria-label="关闭分类管理" onClick={onClose}>关闭</button></header>
       <form className="category-form" onSubmit={submit}>
         <label><span>分类名称</span><ResizableField id="category-name" label="分类名称"><input aria-label="分类名称" value={name} onChange={(event) => setName(event.target.value)} placeholder="例如：内容制作" /></ResizableField></label>
         <label><span>颜色</span><select aria-label="分类颜色" value={color} onChange={(event) => setColor(event.target.value)}>{COLORS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}</select></label>

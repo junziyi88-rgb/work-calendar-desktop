@@ -95,4 +95,22 @@ describe('legacy work calendar migration', () => {
     expect(repositories.workLogs.get('automatic')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
     expect(repositories.workLogs.get('manual')).toMatchObject({ categoryId: 'classics', categoryMode: 'manual' });
   });
+
+  it('reclassifies existing automatic items with punctuation-insensitive partial matching', async () => {
+    database = await createMemoryDatabase();
+    database.db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('legacy_migrated_v2','1')");
+    database.db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('item_categories_migrated_v4','1')");
+    database.db.run("INSERT OR REPLACE INTO meta(key,value) VALUES ('item_title_keywords_migrated_v5','1')");
+    database.db.run(`INSERT INTO categories (id,name,color,keywords_json,deleted_at,created_at,updated_at)
+      VALUES ('classics','小古文','#FBF3DB','["《守株待兔》"]',NULL,'2026-09-01T00:00:00.000Z','2026-09-01T00:00:00.000Z')`);
+    database.db.run(`INSERT INTO work_items (id,title,status,summary,category_id,category_mode,completed_at,deleted_at,created_at,updated_at)
+      VALUES ('item','守株','active','',NULL,'auto',NULL,NULL,'2026-09-02T00:00:00.000Z','2026-09-02T00:00:00.000Z')`);
+    database.db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
+      VALUES ('log','item','完成初稿',NULL,'day','2026-09-08','2026-09-08T01:00:00.000Z',NULL,'auto',NULL,'2026-09-08T01:00:00.000Z','2026-09-08T01:00:00.000Z')`);
+
+    const repositories = createRepositories(database, () => '2026-09-10T02:00:00.000Z');
+
+    expect(repositories.workItems.get('item')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
+    expect(repositories.workLogs.get('log')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
+  });
 });

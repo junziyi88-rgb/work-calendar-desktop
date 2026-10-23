@@ -47,6 +47,16 @@ describe('quick work entry', () => {
     }), undefined);
   });
 
+  it('suggests a category after any single matching item character', async () => {
+    const user = userEvent.setup();
+    const category = { id: 'classics', name: '小古文', color: '#FBF3DB', keywords: ['《守株待兔》'], deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' };
+    render(<QuickEntry items={[]} categories={[category]} initialDate="2026-09-08" onSave={vi.fn()} />);
+
+    await user.type(screen.getByLabelText('关联事项'), '株');
+
+    expect(screen.getByLabelText('分类')).toHaveValue('小古文');
+  });
+
   it('selects a recent item with one click and protects unsaved text', async () => {
     const user = userEvent.setup();
     const item = { id: 'item-1', title: '课程上线', categoryId: null, categoryMode: 'auto' as const, status: 'active' as const, summary: '', completedAt: null, deletedAt: null, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' };
