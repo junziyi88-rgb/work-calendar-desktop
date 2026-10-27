@@ -1,9 +1,10 @@
 import type { SummaryGroup, SummaryKind, SummaryResult, WorkLogData } from '../shared/contracts';
 import { formatWeekRange, periodRange } from './periods';
+import { inheritItemCategories } from './categories';
 
 export function buildSummary(data: WorkLogData, kind: SummaryKind, anchor: string): SummaryResult {
   const { start, end } = periodRange(kind, anchor);
-  const logs = data.logs
+  const logs = inheritItemCategories(data.logs, data.items)
     .filter((log) => !log.deletedAt && log.periodStart >= start && log.periodStart < end)
     .sort((a, b) => a.periodStart.localeCompare(b.periodStart) || a.createdAt.localeCompare(b.createdAt));
   const itemMap = new Map(data.items.map((item) => [item.id, item]));

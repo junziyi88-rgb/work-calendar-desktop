@@ -16,6 +16,14 @@ const log = (overrides: Partial<WorkLog>): WorkLog => ({
 });
 
 describe('work log categories', () => {
+  it('filters all old and new work by the item category and ignores record overrides', () => {
+    const item: WorkItem = { id: 'item-1', title: '已有事项', categoryId: 'writing', categoryMode: 'manual', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '', updatedAt: '' };
+    const logs = [log({ id: 'old', categoryId: 'planning', categoryMode: 'manual' }), log({ id: 'new', categoryId: null })];
+    expect(filterWorkLogs(logs, { categoryId: 'writing' }, [item]).map((entry) => entry.id)).toEqual(['old', 'new']);
+    expect(filterWorkLogs(logs, { categoryId: 'planning' }, [item])).toEqual([]);
+    expect(filterWorkLogs(logs, { categoryId: '__none__' }, [{ ...item, categoryId: null }])).toHaveLength(2);
+    expect(filterWorkLogs([log({ workItemId: null })], { categoryId: 'writing' }, [item])).toEqual([]);
+  });
   it('matches only item titles case-insensitively with longest keyword precedence', () => {
     expect(matchCategory(categories, '课程脚本排期')).toBe('writing');
     expect(matchCategory(categories, '周会议')).toBe('planning');
@@ -54,9 +62,10 @@ describe('work log categories', () => {
       log({ id: 'wanted' }),
       log({ id: 'other-item', workItemId: 'item-2' }),
       log({ id: 'other-content', content: '参加会议' }),
-      log({ id: 'other-category', categoryId: 'planning' })
+      log({ id: 'legacy-override', categoryId: 'planning' })
     ];
-    expect(filterWorkLogs(logs, { workItemId: 'item-1', content: '完成课程脚本', categoryId: 'writing' }).map((entry) => entry.id)).toEqual(['wanted']);
+    const item: WorkItem = { id: 'item-1', title: '课程事项', categoryId: 'writing', categoryMode: 'manual', status: 'active', summary: '', completedAt: null, deletedAt: null, createdAt: '', updatedAt: '' };
+    expect(filterWorkLogs(logs, { workItemId: 'item-1', content: '完成课程脚本', categoryId: 'writing' }, [item]).map((entry) => entry.id)).toEqual(['wanted', 'legacy-override']);
   });
 
   it('searches item titles and work content with partial text', () => {

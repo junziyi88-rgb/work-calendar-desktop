@@ -37,16 +37,14 @@ describe('work log editing', () => {
     await user.type(screen.getByLabelText('编辑日期'), '2026-09-10');
     await user.clear(screen.getByLabelText('编辑时间'));
     await user.type(screen.getByLabelText('编辑时间'), '09:40');
-    expect(screen.getByLabelText('编辑分类').tagName).toBe('INPUT');
-    await user.clear(screen.getByLabelText('编辑分类'));
-    await user.type(screen.getByLabelText('编辑分类'), '项目协作');
+    expect(screen.queryByLabelText('编辑分类')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '保存修改' }));
 
     expect(onSaveItem).toHaveBeenCalledWith(expect.objectContaining({ id: 'item-old', title: '交付归档事项' }));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       id: 'log-1', workItemId: 'item-old', content: '整理本月进展',
       periodKind: 'week', periodStart: '2026-09-07',
-      occurredAt: new Date(2026, 8, 10, 9, 40).toISOString(), categoryName: '项目协作', categoryMode: 'manual'
+      occurredAt: new Date(2026, 8, 10, 9, 40).toISOString(), categoryMode: 'auto'
     }), undefined);
     expect(onSave.mock.calls[0][0]).not.toHaveProperty('effortMinutes');
   }, 10_000);
@@ -80,17 +78,9 @@ describe('work log editing', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ workItemId: null }), '新事项');
   });
 
-  it('allows an automatic category to be manually cleared', async () => {
-    const user = userEvent.setup();
-    const onSave = vi.fn();
-    render(<LogList logs={[log]} items={items} categories={categories} onSave={onSave} onSaveItem={vi.fn()} onDelete={vi.fn()} onRestore={vi.fn()} />);
-
-    await user.click(screen.getByRole('button', { name: '编辑记录' }));
-    expect(screen.getByLabelText('编辑分类')).toHaveValue('内容制作');
-    await user.clear(screen.getByLabelText('编辑分类'));
-    await user.click(screen.getByRole('button', { name: '保存修改' }));
-
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ categoryName: null, categoryMode: 'manual' }), undefined);
+  it('displays the item category even when a legacy record has an override', () => {
+    render(<LogList logs={[{ ...log, categoryId: null, categoryMode: 'manual' }]} items={items} categories={categories} onSave={vi.fn()} onSaveItem={vi.fn()} onDelete={vi.fn()} onRestore={vi.fn()} />);
+    expect(screen.getByText('内容制作')).toBeInTheDocument();
   });
 
   it('does not display saved effort values in record cards', () => {

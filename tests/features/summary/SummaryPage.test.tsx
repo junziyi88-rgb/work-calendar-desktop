@@ -15,6 +15,36 @@ const data: WorkLogData = {
 describe('work summaries', () => {
   beforeEach(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } }));
 
+  it('keeps completed items from other categories out of filtered copied summaries', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText');
+    const changed: WorkLogData = { ...data, items: [
+      { ...data.items[0], status: 'completed', completedAt: '2026-09-08T00:00:00.000Z' },
+      { ...data.items[0], id: 'other', title: '其他分类的已完成事项', categoryId: null, status: 'completed', completedAt: '2026-09-08T00:00:00.000Z' }
+    ] };
+    render(<SummaryPage data={changed} initialAnchor="2026-09-08" onExport={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('总结筛选分类'), 'category-1');
+    await user.click(screen.getByRole('button', { name: '复制周总结' }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('本期完成：课程上线'));
+    expect(writeText.mock.calls[0][0]).not.toContain('其他分类的已完成事项');
+  });
+
+  it('includes every record of the item under its current category in weekly and monthly summaries', async () => {
+    const user = userEvent.setup();
+    const changed = { ...data, logs: [
+      { ...data.logs[0], categoryId: null, categoryMode: 'manual' as const },
+      { ...data.logs[0], id: 'old', content: '旧的工作内容', categoryId: 'obsolete', categoryMode: 'manual' as const }
+    ] };
+    render(<SummaryPage data={changed} initialAnchor="2026-09-08" onExport={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('总结筛选分类'), 'category-1');
+    expect(screen.getByText('旧的工作内容')).toBeInTheDocument();
+    expect(document.querySelector('.summary-group')).toHaveTextContent('完成第三轮脚本修改');
+    await user.click(screen.getByRole('button', { name: '月总结' }));
+    expect(screen.getByText('旧的工作内容')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('总结筛选分类'), '__none__');
+    expect(screen.queryByText('旧的工作内容')).not.toBeInTheDocument();
+  });
+
   it('copies a weekly summary from existing work logs', async () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText');

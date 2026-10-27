@@ -39,7 +39,7 @@ const mapProject = (item: ProjectRow): Project => ({ id: item.id, name: item.nam
 const mapTag = (item: TagRow): Tag => ({ id: item.id, name: item.name, color: item.color, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapSegment = (item: SegmentRow): TimeSegment => ({ id: item.id, taskId: item.task_id, start: item.start, end: item.end, source: item.source, note: item.note, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapWorkItem = (item: WorkItemRow): WorkItem => ({ id: item.id, title: item.title, categoryId: item.category_id, categoryMode: item.category_mode, status: item.status, summary: item.summary, completedAt: item.completed_at, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
-const mapWorkLog = (item: WorkLogRow): WorkLog => ({ id: item.id, workItemId: item.work_item_id, content: item.content, effortMinutes: item.effort_minutes, periodKind: item.period_kind, periodStart: item.period_start, occurredAt: item.occurred_at, categoryId: item.category_id, categoryMode: item.category_mode, deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
+const mapWorkLog = (item: WorkLogRow & { item_category_id: string | null }): WorkLog => ({ id: item.id, workItemId: item.work_item_id, content: item.content, effortMinutes: item.effort_minutes, periodKind: item.period_kind, periodStart: item.period_start, occurredAt: item.occurred_at, categoryId: item.item_category_id, categoryMode: 'auto', deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
 const mapCategory = (item: CategoryRow): Category => ({ id: item.id, name: item.name, color: item.color, keywords: JSON.parse(item.keywords_json) as string[], deletedAt: item.deleted_at, createdAt: item.created_at, updatedAt: item.updated_at });
 
 export function createRepositories(database: AppDatabase, now: () => string = () => new Date().toISOString()) {
@@ -121,14 +121,18 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
     });
   };
 
-  const reclassifyAutoItemsAndLogs = () => {
+  const reclassifyAutoItemsAndLogs = (preserveLegacyOverrides = false) => {
     const available = categoryRows().map(mapCategory);
     for (const item of rows<WorkItemRow>(db, "SELECT * FROM work_items WHERE category_mode!='manual'")) {
       const categoryId = matchCategory(available, item.title);
       db.run("UPDATE work_items SET category_id=?, category_mode='auto' WHERE id=?", [categoryId, item.id]);
-      db.run("UPDATE work_logs SET category_id=?, category_mode='auto' WHERE work_item_id=? AND category_mode!='manual'", [categoryId, item.id]);
     }
-    db.run("UPDATE work_logs SET category_id=NULL, category_mode='auto' WHERE work_item_id IS NULL AND category_mode!='manual'");
+    syncLogCategories(preserveLegacyOverrides);
+  };
+
+  // Retain the legacy columns for exports and compatibility, but derive them only from the item.
+  const syncLogCategories = (preserveLegacyOverrides = false) => {
+    db.run(`UPDATE work_logs SET category_id=(SELECT category_id FROM work_items WHERE id=work_logs.work_item_id), category_mode='auto' ${preserveLegacyOverrides ? "WHERE category_mode!='manual'" : ''}`);
   };
 
   const workItems = {
@@ -155,7 +159,7 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
         else db.run(`INSERT INTO work_items (id,title,status,summary,category_id,category_mode,completed_at,deleted_at,created_at,updated_at)
           VALUES (?,?,'active',?,?,?,NULL,NULL,?,?)`, [id, title, input.summary ?? '', categoryId, categoryMode, timestamp, timestamp]);
         if (categoryMode === 'manual') reclassifyAutoItemsAndLogs();
-        db.run("UPDATE work_logs SET category_id=?,category_mode='auto' WHERE work_item_id=? AND category_mode!='manual'", [categoryId, id]);
+        db.run("UPDATE work_logs SET category_id=?,category_mode='auto' WHERE work_item_id=?", [categoryId, id]);
         db.run('COMMIT');
       } catch (error) { db.run('ROLLBACK'); throw error; }
       persist(); return workItems.get(id)!;
@@ -183,6 +187,7 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
       const timestamp = now(); db.run('BEGIN');
       try {
         db.run('UPDATE categories SET deleted_at=?,updated_at=? WHERE id=?', [timestamp, timestamp, id]);
+        db.run('UPDATE work_items SET category_id=NULL WHERE category_id=?', [id]);
         reclassifyAutoItemsAndLogs();
         db.run('COMMIT');
       } catch (error) { db.run('ROLLBACK'); throw error; }
@@ -194,7 +199,7 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
   if (!itemCategoriesMigrated) {
     db.run('BEGIN');
     try {
-      reclassifyAutoItemsAndLogs();
+      reclassifyAutoItemsAndLogs(true);
       db.run("INSERT INTO meta(key,value) VALUES ('item_categories_migrated_v4','1')");
       db.run('COMMIT');
     } catch (error) { db.run('ROLLBACK'); throw error; }
@@ -235,7 +240,7 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
         const keywords = normalizedKeywords([category.name, ...(titlesByCategory.get(category.id) ?? [])]);
         db.run('UPDATE categories SET keywords_json=?,updated_at=? WHERE id=?', [JSON.stringify(keywords), timestamp, category.id]);
       }
-      reclassifyAutoItemsAndLogs();
+      reclassifyAutoItemsAndLogs(true);
       db.run("INSERT INTO meta(key,value) VALUES ('item_title_keywords_migrated_v5','1')");
       db.run('COMMIT');
     } catch (error) { db.run('ROLLBACK'); throw error; }
@@ -246,16 +251,27 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
   if (!partialItemKeywordsMigrated) {
     db.run('BEGIN');
     try {
-      reclassifyAutoItemsAndLogs();
+      reclassifyAutoItemsAndLogs(true);
       db.run("INSERT INTO meta(key,value) VALUES ('partial_item_keywords_migrated_v6','1')");
       db.run('COMMIT');
     } catch (error) { db.run('ROLLBACK'); throw error; }
     persist();
   }
 
+  const itemOnlyCategoriesMigrated = row<{ value: string }>(db, "SELECT value FROM meta WHERE key='item_only_categories_migrated_v7'");
+  if (!itemOnlyCategoriesMigrated) {
+    db.run('BEGIN');
+    try {
+      syncLogCategories();
+      db.run("INSERT INTO meta(key,value) VALUES ('item_only_categories_migrated_v7','1')");
+      db.run('COMMIT');
+    } catch (error) { db.run('ROLLBACK'); throw error; }
+    persist();
+  }
+
   const workLogs = {
-    list: (includeDeleted = false) => rows<WorkLogRow>(db, `SELECT * FROM work_logs ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'} ORDER BY period_start DESC, created_at DESC`).map(mapWorkLog),
-    get: (id: string) => { const item = row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [id]); return item ? mapWorkLog(item) : null; },
+    list: (includeDeleted = false) => rows<WorkLogRow & { item_category_id: string | null }>(db, `SELECT logs.*, items.category_id AS item_category_id FROM work_logs logs LEFT JOIN work_items items ON items.id=logs.work_item_id ${includeDeleted ? '' : 'WHERE logs.deleted_at IS NULL'} ORDER BY logs.period_start DESC, logs.created_at DESC`).map(mapWorkLog),
+    get: (id: string) => { const item = row<WorkLogRow & { item_category_id: string | null }>(db, 'SELECT logs.*, items.category_id AS item_category_id FROM work_logs logs LEFT JOIN work_items items ON items.id=logs.work_item_id WHERE logs.id=?', [id]); return item ? mapWorkLog(item) : null; },
     save: (input: WorkLogInput) => {
       const content = input.content.trim();
       if (!content) throw new Error('请输入工作内容');
@@ -263,16 +279,20 @@ export function createRepositories(database: AppDatabase, now: () => string = ()
       const id = input.id ?? randomUUID(); const timestamp = now();
       const existing = input.id ? row<WorkLogRow>(db, 'SELECT * FROM work_logs WHERE id=?', [input.id]) : null;
       if (input.workItemId && workItems.get(input.workItemId)?.status === 'completed' && existing?.work_item_id !== input.workItemId) throw new Error('请先重新打开事项');
-      const categoryMode = input.categoryMode ?? existing?.category_mode ?? 'auto';
-      const categoryId = categoryMode === 'manual'
-        ? input.categoryName !== undefined ? resolveTypedCategory(input.categoryName, '') : input.categoryId ?? null
-        : input.workItemId ? workItems.get(input.workItemId)?.categoryId ?? null : null;
+      const categoryMode = 'auto';
+      const categoryId = input.workItemId ? workItems.get(input.workItemId)?.categoryId ?? null : null;
       const occurredAt = input.occurredAt ?? existing?.occurred_at ?? timestamp;
       const effortMinutes = input.effortMinutes === undefined ? existing?.effort_minutes ?? null : input.effortMinutes;
-      if (existing) db.run('UPDATE work_logs SET work_item_id=?,content=?,effort_minutes=?,period_kind=?,period_start=?,occurred_at=?,category_id=?,category_mode=?,updated_at=? WHERE id=?', [input.workItemId ?? null, content, effortMinutes, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, id]);
-      else db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?)`, [id, input.workItemId ?? null, content, effortMinutes, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, timestamp]);
-      if (input.workItemId) db.run('UPDATE work_items SET summary=?, updated_at=? WHERE id=?', [content, timestamp, input.workItemId]);
+      if (input.completeItem && !input.workItemId) throw new Error('请先关联事项');
+      db.run('BEGIN');
+      try {
+        if (existing) db.run('UPDATE work_logs SET work_item_id=?,content=?,effort_minutes=?,period_kind=?,period_start=?,occurred_at=?,category_id=?,category_mode=?,updated_at=? WHERE id=?', [input.workItemId ?? null, content, effortMinutes, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, id]);
+        else db.run(`INSERT INTO work_logs (id,work_item_id,content,effort_minutes,period_kind,period_start,occurred_at,category_id,category_mode,deleted_at,created_at,updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?)`, [id, input.workItemId ?? null, content, effortMinutes, input.periodKind, input.periodStart, occurredAt, categoryId, categoryMode, timestamp, timestamp]);
+        if (input.workItemId) db.run('UPDATE work_items SET summary=?, updated_at=? WHERE id=?', [content, timestamp, input.workItemId]);
+        if (input.completeItem) db.run("UPDATE work_items SET status='completed',completed_at=COALESCE(completed_at,?),updated_at=? WHERE id=?", [timestamp, timestamp, input.workItemId!]);
+        db.run('COMMIT');
+      } catch (error) { db.run('ROLLBACK'); throw error; }
       persist(); return workLogs.get(id)!;
     },
     softDelete: (id: string) => { const timestamp = now(); db.run('UPDATE work_logs SET deleted_at=?, updated_at=? WHERE id=?', [timestamp, timestamp, id]); persist(); },

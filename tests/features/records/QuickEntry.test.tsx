@@ -6,6 +6,48 @@ import { QuickEntry } from '../../../src/features/records/QuickEntry';
 afterEach(() => vi.useRealTimers());
 
 describe('quick work entry', () => {
+  it('can mark an item completed while saving a work record', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<QuickEntry items={[]} initialDate="2026-09-08" onSave={onSave} />);
+    expect(screen.getByRole('checkbox', { name: '事项已完成' })).toBeDisabled();
+    await user.type(screen.getByLabelText('关联事项'), '完成的事项');
+    await user.type(screen.getByLabelText('工作内容'), '完成交付');
+    await user.click(screen.getByRole('checkbox', { name: '事项已完成' }));
+    await user.click(screen.getByRole('button', { name: '记录' }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ completeItem: true, content: '完成交付' }), '完成的事项');
+    expect(screen.getByRole('checkbox', { name: '事项已完成' })).not.toBeChecked();
+  });
+  it('locks the confirmed existing item category regardless of keywords or work content', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const category = { id: 'known', name: '已确认分类', color: '#EDF3EC', keywords: [], deletedAt: null, createdAt: '', updatedAt: '' };
+    const conflicting = { ...category, id: 'other', name: '关键词分类', keywords: ['已有事项', '工作内容'] };
+    const item = { id: 'known-item', title: '已有事项', categoryId: category.id, categoryMode: 'manual' as const, status: 'active' as const, summary: '', completedAt: null, deletedAt: null, createdAt: '', updatedAt: '' };
+    const { rerender } = render(<QuickEntry items={[item]} categories={[category, conflicting]} initialDate="2026-09-08" onSave={onSave} />);
+    await user.type(screen.getByLabelText('关联事项'), item.title);
+    expect(screen.getByLabelText('分类')).toHaveValue(category.name);
+    await user.type(screen.getByLabelText('工作内容'), '工作内容匹配另一个分类');
+    expect(screen.getByLabelText('分类')).toHaveValue(category.name);
+    await user.click(screen.getByRole('button', { name: '记录' }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ workItemId: item.id, categoryId: category.id }), undefined);
+    rerender(<QuickEntry items={[{ ...item, categoryId: null }]} categories={[category, conflicting]} initialDate="2026-09-08" onSave={onSave} />);
+    expect(screen.getByLabelText('分类')).toHaveValue('未分类');
+  });
+
+  it('recognizes a completed existing item and never recreates it with a guessed category', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const category = { id: 'known', name: '已确认分类', color: '#EDF3EC', keywords: [], deletedAt: null, createdAt: '', updatedAt: '' };
+    const item = { id: 'completed', title: '之前做过的事项', categoryId: category.id, categoryMode: 'manual' as const, status: 'completed' as const, summary: '', completedAt: '2026-09-01', deletedAt: null, createdAt: '', updatedAt: '' };
+    render(<QuickEntry items={[item]} categories={[category]} initialDate="2026-09-08" onSave={onSave} />);
+    await user.type(screen.getByLabelText('关联事项'), item.title);
+    expect(screen.getByLabelText('分类')).toHaveValue(category.name);
+    await user.type(screen.getByLabelText('工作内容'), '追加记录');
+    await user.click(screen.getByRole('button', { name: '记录' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('请先重新打开事项');
+  });
   it('turns a short typed update into a manual work log', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
@@ -32,19 +74,14 @@ describe('quick work entry', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ content: '本周完成终审', periodKind: 'week', periodStart: '2026-09-07' }), '课程上线');
   });
 
-  it('accepts a typed category name so the save layer can learn it', async () => {
+  it('shows classification as read-only and leaves category changes to the item', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     render(<QuickEntry items={[]} initialDate="2026-09-08" onSave={onSave} />);
-
+    expect(screen.getByLabelText('分类')).toHaveAttribute('readonly');
     await user.type(screen.getByLabelText('工作内容'), '完成课程脚本');
-    expect(screen.getByLabelText('分类').tagName).toBe('INPUT');
-    await user.type(screen.getByLabelText('分类'), '内容制作');
     await user.click(screen.getByRole('button', { name: '记录' }));
-
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      content: '完成课程脚本', categoryName: '内容制作', categoryMode: 'manual'
-    }), undefined);
+    expect(onSave.mock.calls[0][0]).not.toHaveProperty('categoryName');
   });
 
   it('suggests a category after any single matching item character', async () => {

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createMemoryDatabase, type AppDatabase } from '../../electron/database';
 import { createRepositories, type Repositories } from '../../electron/repositories';
+import { workItemInputSchema, workLogInputSchema } from '../../src/shared/schemas';
 
 describe('work log repositories', () => {
   let database: AppDatabase;
@@ -13,6 +14,37 @@ describe('work log repositories', () => {
   });
 
   afterEach(() => database.close());
+
+  it('saves progress and completes its item in the same operation', () => {
+    const item = repositories.workItems.save({ title: '待交付', categoryName: '交付', categoryMode: 'manual' });
+    const input = workLogInputSchema.parse({ workItemId: item.id, content: '完成交付', periodKind: 'day', periodStart: '2026-09-08', completeItem: true });
+    const log = repositories.workLogs.save(input);
+    expect(log).toMatchObject({ workItemId: item.id, categoryId: item.categoryId });
+    expect(repositories.workItems.get(item.id)).toMatchObject({ status: 'completed', summary: '完成交付', completedAt: '2026-09-08T04:00:00.000Z' });
+  });
+
+  it('rolls back the record if completing the item fails', () => {
+    const item = repositories.workItems.save({ title: '待交付' });
+    database.db.run("CREATE TRIGGER fail_completion BEFORE UPDATE OF status ON work_items WHEN NEW.status='completed' BEGIN SELECT RAISE(ABORT, 'completion failed'); END");
+    const input = workLogInputSchema.parse({ workItemId: item.id, content: '完成交付', periodKind: 'day', periodStart: '2026-09-08', completeItem: true });
+    expect(() => repositories.workLogs.save(input)).toThrow('completion failed');
+    expect(repositories.workLogs.list()).toHaveLength(0);
+    expect(repositories.workItems.get(item.id)).toMatchObject({ status: 'active', summary: '' });
+  });
+
+  it('reads historical logs using the current item category even if legacy cached fields disagree', () => {
+    const item = repositories.workItems.save({ title: '确认事项', categoryName: '确认分类', categoryMode: 'manual' });
+    const log = repositories.workLogs.save({ workItemId: item.id, content: '历史内容', periodKind: 'day', periodStart: '2026-09-08' });
+    database.db.run("UPDATE work_logs SET category_id=NULL, category_mode='manual' WHERE id=?", [log.id]);
+    expect(repositories.workLogs.get(log.id)).toMatchObject({ categoryId: item.categoryId, categoryMode: 'auto' });
+    expect(repositories.workLogData().logs).toEqual([expect.objectContaining({ categoryId: item.categoryId, categoryMode: 'auto' })]);
+  });
+
+  it('preserves item category edits through IPC input validation', () => {
+    const item = repositories.workItems.save(workItemInputSchema.parse({ title: '分类编辑', categoryName: '新分类', categoryMode: 'manual' }));
+    expect(item.categoryMode).toBe('manual');
+    expect(repositories.categories.get(item.categoryId!)?.name).toBe('新分类');
+  });
 
   it('persists long-running items and manual progress logs', () => {
     const item = repositories.workItems.save({ title: '课程上线' });
@@ -77,7 +109,7 @@ describe('work log repositories', () => {
     expect(unlinked).toMatchObject({ categoryId: null, categoryMode: 'auto' });
   });
 
-  it('propagates item category changes only to automatic logs', () => {
+  it('propagates item category changes to every linked log', () => {
     const writing = repositories.categories.save({ name: '内容制作', color: '#EDF3EC', keywords: ['脚本'] });
     const coordination = repositories.categories.save({ name: '项目协作', color: '#E1F3FE', keywords: ['会议'] });
     const item = repositories.workItems.save({ title: '课程脚本开发' });
@@ -86,7 +118,27 @@ describe('work log repositories', () => {
 
     repositories.workItems.save({ id: item.id, title: item.title, categoryName: coordination.name, categoryMode: 'manual' });
     expect(repositories.workLogs.get(automatic.id)).toMatchObject({ categoryId: coordination.id, categoryMode: 'auto' });
-    expect(repositories.workLogs.get(manual.id)).toMatchObject({ categoryId: writing.id, categoryMode: 'manual' });
+    expect(repositories.workLogs.get(manual.id)).toMatchObject({ categoryId: coordination.id, categoryMode: 'auto' });
+  });
+
+  it('ignores record category overrides and inherits the target item when relinking', () => {
+    const first = repositories.workItems.save({ title: '第一事项', categoryName: '制作', categoryMode: 'manual' });
+    const second = repositories.workItems.save({ title: '第二事项', categoryName: '协作', categoryMode: 'manual' });
+    const log = repositories.workLogs.save({ workItemId: first.id, content: '完成初稿', periodKind: 'day', periodStart: '2026-09-08', categoryName: '记录独立分类', categoryMode: 'manual' });
+    expect(log).toMatchObject({ categoryId: first.categoryId, categoryMode: 'auto' });
+    expect(repositories.categories.list().map((category) => category.name)).not.toContain('记录独立分类');
+    expect(repositories.workLogs.save({ ...log, workItemId: second.id })).toMatchObject({ categoryId: second.categoryId, categoryMode: 'auto' });
+    expect(repositories.workLogs.save({ ...log, workItemId: null })).toMatchObject({ categoryId: null, categoryMode: 'auto' });
+  });
+
+  it('normalizes legacy record overrides once without changing work content or dates', () => {
+    const item = repositories.workItems.save({ title: '长期事项', categoryName: '事项分类', categoryMode: 'manual' });
+    const log = repositories.workLogs.save({ workItemId: item.id, content: '完成复核', effortMinutes: 45, periodKind: 'day', periodStart: '2026-09-08', occurredAt: '2026-09-08T03:26:00.000Z' });
+    database.db.run("UPDATE work_logs SET category_id=NULL, category_mode='manual', deleted_at='2026-09-09T00:00:00.000Z' WHERE id=?", [log.id]);
+    database.db.run("DELETE FROM meta WHERE key='item_only_categories_migrated_v7'");
+    const updated = createRepositories(database);
+    expect(updated.workLogs.get(log.id)).toEqual({ ...log, categoryId: item.categoryId, categoryMode: 'auto', deletedAt: '2026-09-09T00:00:00.000Z' });
+    expect(createRepositories(database).workLogs.get(log.id)).toEqual(updated.workLogs.get(log.id));
   });
 
   it('creates or reuses typed item categories and learns complete item names', () => {

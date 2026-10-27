@@ -17,7 +17,9 @@ export function SummaryPage({ data, initialAnchor = dateKey(new Date()), onExpor
   const [copied, setCopied] = useState(false);
   const filteredData = useMemo(() => ({
     ...data,
-    logs: filterWorkLogs(data.logs, { workItemId: filterItem || undefined, content: filterContent || undefined, categoryId: filterCategory || undefined })
+    items: data.items.filter((item) => (!filterItem || item.id === filterItem)
+      && (!filterCategory || (filterCategory === '__none__' ? item.categoryId === null : item.categoryId === filterCategory))),
+    logs: filterWorkLogs(data.logs, { workItemId: filterItem || undefined, content: filterContent || undefined, categoryId: filterCategory || undefined }, data.items)
   }), [data, filterCategory, filterContent, filterItem]);
   const summary = useMemo(() => buildSummary(filteredData, kind, anchor), [filteredData, kind, anchor]);
 

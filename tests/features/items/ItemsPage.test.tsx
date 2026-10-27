@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ItemsPage } from '../../../src/features/items/ItemsPage';
@@ -22,20 +22,42 @@ const data: WorkLogData = {
 };
 
 describe('long-running work items', () => {
+  it('marks an item completed directly from its card without opening its timeline', async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    render(<ItemsPage data={data} onSaveItem={vi.fn()} onComplete={onComplete} onReopen={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: '标记完成：桌面工作记录工具' }));
+    expect(onComplete).toHaveBeenCalledWith('item-1');
+    expect(screen.queryByRole('button', { name: '返回事项' })).not.toBeInTheDocument();
+  });
   it('opens an item and shows its accumulated progress timeline', async () => {
     const user = userEvent.setup();
     render(<ItemsPage data={data} onSaveItem={vi.fn()} onComplete={vi.fn()} onReopen={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: /桌面工作记录工具/ }));
+    await user.click(screen.getByRole('button', { name: /桌面工作记录工具，查看进展/ }));
     expect(screen.getByText('重新梳理真实需求')).toBeInTheDocument();
     expect(screen.queryByText(/累计.*小时/)).not.toBeInTheDocument();
     expect(screen.queryByText('18.5 小时')).not.toBeInTheDocument();
+  });
+
+  it('keeps one card per item and opens all of its records across dates', async () => {
+    const user = userEvent.setup();
+    const expanded = { ...data, logs: [...data.logs, { ...data.logs[0], id: 'older', periodKind: 'day' as const, periodStart: '2025-01-01', content: '去年完成的调研' }, { ...data.logs[0], id: 'removed', content: '已删除的内容', deletedAt: '2026-09-09' }] };
+    render(<ItemsPage data={expanded} onSaveItem={vi.fn()} onComplete={vi.fn()} onReopen={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
+    const card = screen.getByRole('button', { name: /桌面工作记录工具，查看进展/ });
+    expect(within(card).getByText('2 条记录')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /查看进展/ })).toHaveLength(2);
+    await user.click(card);
+    expect(screen.getByText('去年完成的调研')).toBeInTheDocument();
+    expect(screen.getByText('重新梳理真实需求')).toBeInTheDocument();
+    expect(screen.queryByText('校对上线清单')).not.toBeInTheDocument();
+    expect(screen.queryByText('已删除的内容')).not.toBeInTheDocument();
   });
 
   it('edits the item name and chooses a manual default category', async () => {
     const user = userEvent.setup();
     const onSaveItem = vi.fn();
     render(<ItemsPage data={data} onSaveItem={onSaveItem} onComplete={vi.fn()} onReopen={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: /桌面工作记录工具/ }));
+    await user.click(screen.getByRole('button', { name: /桌面工作记录工具，查看进展/ }));
     await user.click(screen.getByRole('button', { name: '编辑事项' }));
     await user.clear(screen.getByLabelText('事项名称'));
     await user.type(screen.getByLabelText('事项名称'), '桌面工作记录应用');
@@ -53,7 +75,7 @@ describe('long-running work items', () => {
     const user = userEvent.setup();
     const onSaveItem = vi.fn();
     render(<ItemsPage data={data} onSaveItem={onSaveItem} onComplete={vi.fn()} onReopen={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: /桌面工作记录工具/ }));
+    await user.click(screen.getByRole('button', { name: /桌面工作记录工具，查看进展/ }));
     await user.click(screen.getByRole('button', { name: '编辑事项' }));
     expect(screen.getByLabelText('事项分类')).toHaveValue('工具开发');
     await user.clear(screen.getByLabelText('事项名称'));
@@ -71,13 +93,13 @@ describe('long-running work items', () => {
     render(<ItemsPage data={data} onSaveItem={vi.fn()} onComplete={vi.fn()} onReopen={vi.fn()} onSaveLog={vi.fn()} onDeleteLog={vi.fn()} onRestoreLog={vi.fn()} />);
 
     await user.type(screen.getByLabelText('搜索事项或工作内容'), '清单');
-    expect(screen.getByRole('button', { name: /课程发布/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /桌面工作记录工具/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /课程发布，查看进展/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /桌面工作记录工具，查看进展/ })).not.toBeInTheDocument();
 
     await user.clear(screen.getByLabelText('搜索事项或工作内容'));
     await user.type(screen.getByLabelText('搜索事项或工作内容'), '桌面工作');
-    expect(screen.getByRole('button', { name: /桌面工作记录工具/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /课程发布/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /桌面工作记录工具，查看进展/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /课程发布，查看进展/ })).not.toBeInTheDocument();
   });
 
   it('uses a compact header without promotional copy', () => {

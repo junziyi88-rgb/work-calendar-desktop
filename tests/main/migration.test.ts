@@ -93,7 +93,7 @@ describe('legacy work calendar migration', () => {
     expect(repositories.workItems.get('named')).toMatchObject({ categoryId: 'words', categoryMode: 'auto' });
     expect(repositories.workItems.get('learned')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
     expect(repositories.workLogs.get('automatic')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
-    expect(repositories.workLogs.get('manual')).toMatchObject({ categoryId: 'classics', categoryMode: 'manual' });
+    expect(repositories.workLogs.get('manual')).toMatchObject({ categoryId: 'classics', categoryMode: 'auto' });
   });
 
   it('reclassifies existing automatic items with punctuation-insensitive partial matching', async () => {

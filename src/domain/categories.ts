@@ -47,12 +47,21 @@ export function historicalContentOptions(logs: WorkLog[]) {
     });
 }
 
-export function filterWorkLogs(logs: WorkLog[], filters: WorkLogFilters, items: WorkItem[] = []) {
+export function inheritItemCategories(logs: WorkLog[], items: WorkItem[]): WorkLog[] {
+  const itemCategories = new Map(items.map((item) => [item.id, item.categoryId]));
+  return logs.map((log) => ({
+    ...log,
+    categoryId: log.workItemId ? itemCategories.get(log.workItemId) ?? null : null,
+    categoryMode: 'auto'
+  }));
+}
+
+export function filterWorkLogs(logs: WorkLog[], filters: WorkLogFilters, items: WorkItem[]) {
   const content = filters.content ? normalize(filters.content) : '';
   const itemQuery = filters.itemQuery ? normalize(filters.itemQuery) : '';
   const contentQuery = filters.contentQuery ? normalize(filters.contentQuery) : '';
   const itemTitles = new Map(items.map((item) => [item.id, normalize(item.title)]));
-  return logs.filter((log) => {
+  return inheritItemCategories(logs, items).filter((log) => {
     if (filters.workItemId && log.workItemId !== filters.workItemId) return false;
     if (itemQuery && (!log.workItemId || !itemTitles.get(log.workItemId)?.includes(itemQuery))) return false;
     if (content && normalize(log.content) !== content) return false;
